@@ -1,32 +1,16 @@
 @import "tailwindcss";
 
-/* Void Minimal - Pure black, floating elements */
+/* Spec-defined Dark Theme - Quiet, Minimal, Premium */
 :root {
-  --bg: #000000;
-  --bg-secondary: #121212;
-  --bg-tertiary: #1c1c1e;
-  --bg-hover: #1c1c1e;
-  --dot: #2a2a2a;
-  --dot-active: #ff3b30;
-  --text-primary: #ffffff;
-  --text-secondary: #8e8e93;
-  --text-muted: #48484a;
-  --accent: #ff3b30;
-  --border: rgba(255, 255, 255, 0.1);
-}
-
-html.light {
-  --bg: #ffffff;
-  --bg-secondary: #f2f2f7;
-  --bg-tertiary: #ffffff;
-  --bg-hover: #e5e5ea;
-  --dot: #e0e0e0;
-  --dot-active: #ff3b30;
-  --text-primary: #000000;
-  --text-secondary: #8e8e93;
-  --text-muted: #c7c7cc;
-  --accent: #ff3b30;
-  --border: rgba(0, 0, 0, 0.05);
+  --bg-primary: #0b0b0b;
+  --bg-secondary: #141414;
+  --bg-tertiary: #181818;
+  --bg-surface: rgba(255, 255, 255, 0.06);
+  --accent: #e85d4f;
+  --text-primary: #f5f5f5;
+  --text-secondary: #a0a0a0;
+  --text-muted: #6f6f6f;
+  --border-subtle: rgba(255, 255, 255, 0.12);
 }
 
 * {
@@ -36,114 +20,108 @@ html.light {
 }
 
 html {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  font-family: 'SF Pro Display', 'SF Pro Text', Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg);
+  background-color: var(--bg-primary);
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 body {
-  background-color: var(--bg);
+  background-color: var(--bg-primary);
   min-height: 100vh;
   overflow-x: hidden;
 }
 
 #root {
   min-height: 100vh;
-  background-color: var(--bg);
+  background-color: var(--bg-primary);
 }
 
-/* Layout */
-.app-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  max-width: 480px;
-  margin: 0 auto;
-  position: relative;
-  background-color: var(--bg);
-}
-
-.sidebar {
-  display: none; /* Hide sidebar in mobile layout */
-}
-
-.main-content {
-  flex: 1;
-  padding: 24px 20px 100px 20px;
-  background-color: var(--bg);
-  overflow-y: auto;
-}
-
-/* Typography */
-.text-display {
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--text-primary);
-}
-
-.text-title {
-  font-size: 22px;
+/* Typography Scale */
+.hero-text {
+  font-size: clamp(32px, 5vw, 36px);
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.text-label {
-  font-size: 13px;
+.section-header {
+  font-size: clamp(20px, 4vw, 24px);
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: var(--text-secondary);
+  line-height: 1.3;
 }
 
-.text-body {
-  font-size: 16px;
+.body-text {
+  font-size: 15px;
   font-weight: 400;
-  color: var(--text-secondary);
   line-height: 1.5;
+  color: var(--text-secondary);
 }
 
-/* Buttons */
-.btn-primary {
+.label-text {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Spec UI Components */
+.btn-pill-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
+  padding: 12px 28px;
   background-color: #ffffff;
-  color: #000000;
-  font-size: 16px;
+  color: #0b0b0b;
+  font-size: 15px;
   font-weight: 600;
-  border-radius: 28px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
 }
 
-.btn-primary:active {
-  transform: scale(0.96);
+.btn-pill-primary:active {
   opacity: 0.9;
+  transform: scale(0.98);
 }
 
-.btn-ghost {
+.btn-pill-secondary {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 16px;
+  justify-content: center;
+  padding: 12px 28px;
+  background-color: transparent;
+  color: #f5f5f5;
+  font-size: 15px;
   font-weight: 500;
-  border: none;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: background-color 200ms ease-out, transform 200ms ease-out;
 }
 
-.btn-ghost:hover {
-  color: var(--text-primary);
+.btn-pill-secondary:active {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: scale(0.98);
+}
+
+.spec-card {
+  background-color: var(--bg-surface);
+  border-radius: 20px;
+  padding: 24px;
+  transition: background-color 200ms ease-out;
+}
+
+/* Layout helpers */
+.lp-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 /* Habit Card (Reference Style) */
