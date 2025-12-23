@@ -118,16 +118,16 @@ function App() {
 
   return (
     <ThemeProvider>
-      {/* Beta Banner */}
+      {/* Beta Badge */}
       <div
-        className="fixed top-0 left-0 right-0 z-[100] text-center py-1 text-[10px] tracking-widest uppercase"
+        className="fixed top-3 right-3 z-[100] px-2 py-0.5 rounded-full text-[9px] tracking-wider uppercase"
         style={{
-          background: 'rgba(139, 92, 246, 0.08)',
-          color: 'rgba(139, 92, 246, 0.6)',
-          borderBottom: '1px solid rgba(139, 92, 246, 0.1)',
+          background: 'rgba(139, 92, 246, 0.12)',
+          color: 'rgba(139, 92, 246, 0.7)',
+          border: '1px solid rgba(139, 92, 246, 0.2)',
         }}
       >
-        private beta
+        beta
       </div>
       <SubscriptionProvider>
         <HabitsProvider>
