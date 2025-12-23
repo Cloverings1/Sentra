@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
-import { getMonthDays, isToday, formatDate, getWeekStreakCount } from '../utils/dateUtils';
+import { getMonthDays, isToday, getWeekStreakCount } from '../utils/dateUtils';
+import { CompletionDots } from './CompletionDots';
 import type { Habit } from '../types';
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const Calendar = () => {
-  const { habits, completedDays } = useHabits();
+  const { habits, completedDays, getCompletedHabitsForDate } = useHabits();
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
   const weekStreak = getWeekStreakCount(completedDays);
 
@@ -21,28 +22,6 @@ export const Calendar = () => {
     }
     return result;
   }, []);
-
-  const hasCompletionOnDay = (date: Date) => {
-    const dateStr = formatDate(date);
-    const completionsForDay = completedDays.filter(c => c.date === dateStr);
-    if (selectedHabit) {
-      return completionsForDay.some(c => c.habitId === selectedHabit.id);
-    }
-    return completionsForDay.length > 0;
-  };
-
-  const getHabitColorForDay = (date: Date): string | null => {
-    const dateStr = formatDate(date);
-    const completionsForDay = completedDays.filter(c => c.date === dateStr);
-    if (selectedHabit) {
-      return completionsForDay.some(c => c.habitId === selectedHabit.id) ? selectedHabit.color : null;
-    }
-    if (completionsForDay.length > 0) {
-      const habit = habits.find(h => h.id === completionsForDay[0].habitId);
-      return habit?.color || '#ffffff';
-    }
-    return null;
-  };
 
   return (
     <div className="main-content">
@@ -59,14 +38,14 @@ export const Calendar = () => {
       {/* Habit filter */}
       {habits.length > 0 && (
         <motion.div
-          className="flex items-center gap-4 mb-12"
+          className="flex items-center gap-4 mb-12 flex-wrap"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
         >
           <button
             onClick={() => setSelectedHabit(null)}
-            className="text-[13px]"
+            className="text-[13px] transition-colors"
             style={{ color: !selectedHabit ? 'var(--text-primary)' : 'var(--text-muted)' }}
           >
             All
@@ -75,7 +54,7 @@ export const Calendar = () => {
             <button
               key={habit.id}
               onClick={() => setSelectedHabit(habit)}
-              className="flex items-center gap-2 text-[13px]"
+              className="flex items-center gap-2 text-[13px] transition-colors"
               style={{ color: selectedHabit?.id === habit.id ? 'var(--text-primary)' : 'var(--text-muted)' }}
             >
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: habit.color }} />
@@ -124,19 +103,42 @@ export const Calendar = () => {
                   }
 
                   const isTodayDate = isToday(day);
-                  const hasCompletion = hasCompletionOnDay(day);
-                  const habitColor = getHabitColorForDay(day);
+                  // Use shared function with optional filter
+                  const completedHabits = getCompletedHabitsForDate(day, selectedHabit?.id);
+                  const hasCompletions = completedHabits.length > 0;
 
                   return (
-                    <div key={day.toISOString()} className="cal-cell">
+                    <div
+                      key={day.toISOString()}
+                      className="cal-cell flex-col transition-opacity duration-200"
+                      style={{
+                        // Fade empty days, normal for completed
+                        opacity: hasCompletions ? 1 : 0.4,
+                      }}
+                    >
+                      {/* Completion dots above the day indicator */}
+                      {hasCompletions && (
+                        <CompletionDots
+                          habits={completedHabits}
+                          size={6}
+                          maxVisible={5}
+                          overlapPercent={35}
+                          className="mb-0.5"
+                        />
+                      )}
+
+                      {/* Day indicator dot - subtle glow for completed days */}
                       <div
                         className="cal-dot"
                         style={{
                           backgroundColor: isTodayDate
                             ? 'var(--dot-active)'
-                            : hasCompletion && habitColor
-                              ? habitColor
+                            : hasCompletions
+                              ? 'rgba(255, 255, 255, 0.3)'
                               : undefined,
+                          boxShadow: hasCompletions && !isTodayDate
+                            ? '0 0 8px rgba(255, 255, 255, 0.15)'
+                            : undefined,
                         }}
                       />
                     </div>

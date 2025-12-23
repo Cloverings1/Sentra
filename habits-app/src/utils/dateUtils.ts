@@ -1,9 +1,20 @@
+// Date utility functions for habit tracking
+
 export const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
 
 export const parseDate = (dateStr: string): Date => {
   return new Date(dateStr + 'T00:00:00');
+};
+
+/**
+ * Get yesterday's date using proper date arithmetic (handles DST, timezones)
+ */
+export const getYesterday = (): Date => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return yesterday;
 };
 
 export const getWeekDays = (date: Date): Date[] => {
@@ -23,19 +34,15 @@ export const getMonthDays = (year: number, month: number): (Date | null)[] => {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
-  // Convert Sunday-first (0-6) to Monday-first (0-6)
-  // Sunday (0) becomes 6, Monday (1) becomes 0, etc.
   const dayOfWeek = firstDay.getDay();
   const startingDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
   const days: (Date | null)[] = [];
 
-  // Add empty slots for days before the first of the month
   for (let i = 0; i < startingDay; i++) {
     days.push(null);
   }
 
-  // Add all days of the month
   for (let day = 1; day <= daysInMonth; day++) {
     days.push(new Date(year, month, day));
   }
@@ -61,22 +68,17 @@ export const getMonthName = (date: Date, short: boolean = false): string => {
   return date.toLocaleDateString('en-US', options);
 };
 
-export const calculateStreak = (
-  completedDays: string[],
-  habitId?: string,
-  allCompletions?: { habitId: string; date: string }[]
-): number => {
-  const dates = habitId && allCompletions
-    ? allCompletions.filter(c => c.habitId === habitId).map(c => c.date)
-    : completedDays;
+/**
+ * Core streak calculation from sorted date strings (DRY helper)
+ * Counts consecutive days backwards from most recent date
+ */
+const calculateStreakFromDates = (sortedDates: string[]): number => {
+  if (sortedDates.length === 0) return 0;
 
-  if (dates.length === 0) return 0;
-
-  const sortedDates = [...dates].sort((a, b) => b.localeCompare(a));
   const today = formatDate(new Date());
-  const yesterday = formatDate(new Date(Date.now() - 86400000));
+  const yesterday = formatDate(getYesterday());
 
-  // Check if streak is current (today or yesterday)
+  // Streak must include today or yesterday to be "current"
   if (sortedDates[0] !== today && sortedDates[0] !== yesterday) {
     return 0;
   }
@@ -99,12 +101,31 @@ export const calculateStreak = (
   return streak;
 };
 
+/**
+ * Calculate streak for a specific habit or from a list of dates
+ */
+export const calculateStreak = (
+  completedDays: string[],
+  habitId?: string,
+  allCompletions?: { habitId: string; date: string }[]
+): number => {
+  const dates = habitId && allCompletions
+    ? allCompletions.filter(c => c.habitId === habitId).map(c => c.date)
+    : completedDays;
+
+  if (dates.length === 0) return 0;
+
+  const sortedDates = [...dates].sort((a, b) => b.localeCompare(a));
+  return calculateStreakFromDates(sortedDates);
+};
+
 export const getWeekNumber = (date: Date): number => {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const msPerDay = 86400000;
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / msPerDay) + 1) / 7);
 };
 
 export const getWeekStreakCount = (
@@ -138,4 +159,39 @@ export const getWeekStreakCount = (
   }
 
   return weekStreak;
+};
+
+/**
+ * Calculate global streak - consecutive days with at least one habit completion
+ */
+export const calculateGlobalStreak = (
+  completedDays: { habitId: string; date: string }[]
+): number => {
+  if (completedDays.length === 0) return 0;
+
+  const uniqueDates = [...new Set(completedDays.map(c => c.date))].sort((a, b) => b.localeCompare(a));
+  return calculateStreakFromDates(uniqueDates);
+};
+
+/**
+ * Count unique days with at least one completion in the current week (Mon-Sun)
+ */
+export const getWeekCompletionCount = (
+  completedDays: { habitId: string; date: string }[]
+): number => {
+  const today = new Date();
+  const weekDays = getWeekDays(today);
+  const weekStart = formatDate(weekDays[0]);
+  const weekEnd = formatDate(weekDays[6]);
+
+  const uniqueDates = new Set(completedDays.map(c => c.date));
+  let count = 0;
+
+  for (const dateStr of uniqueDates) {
+    if (dateStr >= weekStart && dateStr <= weekEnd) {
+      count++;
+    }
+  }
+
+  return count;
 };

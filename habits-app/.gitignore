@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase
+.supabase
+supabase/.env
+supabase/.temp
+
+# Environment files (ensure secrets are never committed)
+.env
+.env.local
+.env.*.local
+!.env.example

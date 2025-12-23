@@ -1,5 +1,17 @@
 export type RecurrenceType = 'daily' | 'weekly' | 'custom';
 
+export type SubscriptionStatus = 'free' | 'active' | 'canceled' | 'past_due' | 'diamond';
+
+export interface UserProfile {
+  id: string;
+  stripe_customer_id: string | null;
+  subscription_status: SubscriptionStatus;
+  subscription_id: string | null;
+  price_id: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+}
+
 export interface CustomRecurrence {
   monday: boolean;
   tuesday: boolean;

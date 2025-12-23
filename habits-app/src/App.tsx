@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { HabitsProvider } from './contexts/HabitsContext';
 import { useAuth } from './contexts/AuthContext';
 import { Navigation } from './components/Navigation';
@@ -11,6 +12,9 @@ import { Stats } from './components/Stats';
 import { Settings } from './components/Settings';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
+import { PrivacyPage } from './components/PrivacyPage';
+import { TermsPage } from './components/TermsPage';
+import { ChangelogPage } from './components/ChangelogPage';
 import type { ViewType } from './types';
 
 const pageVariants = {
@@ -42,7 +46,7 @@ const AppLayout = () => {
   const renderView = () => {
     switch (currentView) {
       case 'home':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentView} />;
       case 'calendar':
         return <Calendar />;
       case 'stats':
@@ -50,7 +54,7 @@ const AppLayout = () => {
       case 'settings':
         return <Settings />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentView} />;
     }
   };
 
@@ -75,25 +79,29 @@ const AppLayout = () => {
 };
 
 function App() {
-  const { user, loading } = useAuth();
-  const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <ThemeProvider>
-      <HabitsProvider>
-        <Routes>
-          <Route 
-            path="/" 
-            element={user ? <Navigate to="/app" replace /> : <LandingPage />} 
-          />
-          <Route 
-            path="/login" 
-            element={user ? <Navigate to="/app" replace /> : <AuthPage />} 
-          />
-          <Route path="/app/*" element={<AppLayout />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </HabitsProvider>
+      <SubscriptionProvider>
+        <HabitsProvider>
+          <Routes>
+            <Route
+              path="/"
+              element={user ? <Navigate to="/app" replace /> : <LandingPage />}
+            />
+            <Route
+              path="/login"
+              element={user ? <Navigate to="/app" replace /> : <AuthPage />}
+            />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/changelog" element={<ChangelogPage />} />
+            <Route path="/app/*" element={<AppLayout />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </HabitsProvider>
+      </SubscriptionProvider>
     </ThemeProvider>
   );
 }

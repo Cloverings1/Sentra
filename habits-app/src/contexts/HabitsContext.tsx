@@ -3,13 +3,34 @@ import type { Habit, CompletedDay, RecurrenceType, CustomRecurrence } from '../t
 import { getNextColor } from '../types';
 import { supabase } from '../utils/supabase';
 import { useAuth } from './AuthContext';
+import { useSubscription } from './SubscriptionContext';
+
+// Use hasPremiumAccess instead of isPro to include Diamond tier
 import { formatDate } from '../utils/dateUtils';
+import { storage } from '../utils/storage';
+
+const FREE_HABIT_LIMIT = 3;
+
+// Capitalize first letter of a name
+const capitalizeFirstLetter = (name: string): string => {
+  if (!name) return name;
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+export class HabitLimitError extends Error {
+  code = 'HABIT_LIMIT_REACHED';
+  constructor() {
+    super('You have reached the maximum number of habits for your plan');
+    this.name = 'HabitLimitError';
+  }
+}
 
 interface HabitsContextType {
   habits: Habit[];
   completedDays: CompletedDay[];
   userName: string;
   loading: boolean;
+  habitLimitReached: boolean;
   addHabit: (name: string, color?: string, recurrence?: RecurrenceType, customDays?: CustomRecurrence) => Promise<void>;
   removeHabit: (id: string) => Promise<void>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
@@ -17,17 +38,23 @@ interface HabitsContextType {
   isCompleted: (habitId: string, date: Date) => boolean;
   getCompletionsForDate: (date: Date) => CompletedDay[];
   getCompletionsForHabit: (habitId: string) => CompletedDay[];
+  getCompletedHabitsForDate: (date: Date, filterHabitId?: string) => Habit[];
   setUserName: (name: string) => void;
+  resetAllHabits: () => Promise<void>;
 }
 
 const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
 
 export const HabitsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const { hasPremiumAccess } = useSubscription();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedDays, setCompletedDays] = useState<CompletedDay[]>([]);
   const [userName, setUserNameState] = useState<string>('');
   const [loading, setLoading] = useState(true);
+
+  // Compute whether the habit limit has been reached
+  const habitLimitReached = !hasPremiumAccess && habits.length >= FREE_HABIT_LIMIT;
 
   const fetchHabits = useCallback(async () => {
     if (!user) return;
@@ -46,7 +73,7 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
         color: h.color,
         createdAt: h.created_at,
         recurrence: h.frequency as RecurrenceType,
-        customDays: h.customDays,
+        customDays: h.custom_days,
       }));
 
       setHabits(formattedHabits);
@@ -74,7 +101,9 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (user) {
       fetchHabits();
-      setUserNameState(user.email?.split('@')[0] || 'User');
+      // Use display_name from user_metadata if available, otherwise fallback to email
+      const rawName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+      setUserNameState(capitalizeFirstLetter(rawName));
     } else {
       setHabits([]);
       setCompletedDays([]);
@@ -84,6 +113,12 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
 
   const addHabit = useCallback(async (name: string, color?: string, recurrence: RecurrenceType = 'daily', customDays?: CustomRecurrence) => {
     if (!user) return;
+
+    // Check habit limit for free users
+    if (!hasPremiumAccess && habits.length >= FREE_HABIT_LIMIT) {
+      throw new HabitLimitError();
+    }
+
     const usedColors = habits.map(h => h.color);
     const habitColor = color || getNextColor(usedColors);
 
@@ -95,7 +130,7 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
           name,
           color: habitColor,
           frequency: recurrence,
-          customDays: recurrence === 'custom' ? customDays : null,
+          custom_days: recurrence === 'custom' ? customDays : null,
         },
       ])
       .select()
@@ -109,11 +144,11 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
       color: data.color,
       createdAt: data.created_at,
       recurrence: data.frequency as RecurrenceType,
-      customDays: data.customDays,
+      customDays: data.custom_days,
     };
 
     setHabits(prev => [...prev, newHabit]);
-  }, [user, habits]);
+  }, [user, habits, hasPremiumAccess]);
 
   const removeHabit = useCallback(async (id: string) => {
     if (!user) return;
@@ -131,12 +166,12 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
     if (!user) return;
-    
-    const dbUpdates: any = {};
+
+    const dbUpdates: Record<string, unknown> = {};
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.color) dbUpdates.color = updates.color;
     if (updates.recurrence) dbUpdates.frequency = updates.recurrence;
-    if (updates.customDays) dbUpdates.customDays = updates.customDays;
+    if (updates.customDays) dbUpdates.custom_days = updates.customDays;
 
     const { error } = await supabase
       .from('habits')
@@ -157,6 +192,12 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
     );
 
     if (exists) {
+      // Optimistic update - remove immediately for instant feedback
+      setCompletedDays(prev => prev.filter(
+        c => !(c.habitId === habitId && c.date === dateStr)
+      ));
+
+      // Sync to server in background
       const { error } = await supabase
         .from('completions')
         .delete()
@@ -164,12 +205,17 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
         .eq('date', dateStr)
         .eq('user_id', user.id);
 
-      if (error) throw error;
-
-      setCompletedDays(prev => prev.filter(
-        c => !(c.habitId === habitId && c.date === dateStr)
-      ));
+      // Revert on error
+      if (error) {
+        console.error('Failed to uncomplete habit:', error);
+        setCompletedDays(prev => [...prev, { habitId, date: dateStr }]);
+        throw error;
+      }
     } else {
+      // Optimistic update - add immediately for instant feedback
+      setCompletedDays(prev => [...prev, { habitId, date: dateStr }]);
+
+      // Sync to server in background
       const { error } = await supabase
         .from('completions')
         .insert([
@@ -180,9 +226,14 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
           },
         ]);
 
-      if (error) throw error;
-
-      setCompletedDays(prev => [...prev, { habitId, date: dateStr }]);
+      // Revert on error
+      if (error) {
+        console.error('Failed to complete habit:', error);
+        setCompletedDays(prev => prev.filter(
+          c => !(c.habitId === habitId && c.date === dateStr)
+        ));
+        throw error;
+      }
     }
   }, [user, completedDays]);
 
@@ -200,9 +251,49 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
     return completedDays.filter(c => c.habitId === habitId);
   }, [completedDays]);
 
+  /**
+   * Get completed habits for a specific date
+   * Optional filterHabitId to show only that habit if it was completed
+   */
+  const getCompletedHabitsForDate = useCallback((date: Date, filterHabitId?: string): Habit[] => {
+    const completions = getCompletionsForDate(date);
+
+    if (filterHabitId) {
+      const habit = habits.find(h => h.id === filterHabitId);
+      return completions.some(c => c.habitId === filterHabitId) && habit ? [habit] : [];
+    }
+
+    return completions
+      .map(c => habits.find(h => h.id === c.habitId))
+      .filter((h): h is Habit => h !== undefined);
+  }, [habits, getCompletionsForDate]);
+
   const setUserName = useCallback((name: string) => {
-    setUserNameState(name);
+    setUserNameState(capitalizeFirstLetter(name));
   }, []);
+
+  const resetAllHabits = useCallback(async () => {
+    if (!user) return;
+
+    // Delete all data from Supabase tables in parallel
+    const [habitsDelete, completionsDelete, streaksDelete] = await Promise.all([
+      supabase.from('habits').delete().eq('user_id', user.id),
+      supabase.from('completions').delete().eq('user_id', user.id),
+      supabase.from('broken_streaks').delete().eq('user_id', user.id),
+    ]);
+
+    // Check for errors
+    if (habitsDelete.error) throw habitsDelete.error;
+    if (completionsDelete.error) throw completionsDelete.error;
+    if (streaksDelete.error) throw streaksDelete.error;
+
+    // Clear localStorage
+    storage.clearAll();
+
+    // Reset React state
+    setHabits([]);
+    setCompletedDays([]);
+  }, [user]);
 
   return (
     <HabitsContext.Provider
@@ -211,6 +302,7 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
         completedDays,
         userName,
         loading,
+        habitLimitReached,
         addHabit,
         removeHabit,
         updateHabit,
@@ -218,7 +310,9 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
         isCompleted,
         getCompletionsForDate,
         getCompletionsForHabit,
+        getCompletedHabitsForDate,
         setUserName,
+        resetAllHabits,
       }}
     >
       {children}
