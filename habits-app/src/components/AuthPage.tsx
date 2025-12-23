@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
@@ -19,11 +19,11 @@ export const AuthPage = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showFoundingCelebration, setShowFoundingCelebration] = useState(false);
-  const [isFoundingMember, setIsFoundingMember] = useState(false);
+  const [, setIsFoundingMember] = useState(false);
   const navigate = useNavigate();
 
   // Check if founding spots are available
-  const { spotsRemaining, loading: spotsLoading } = useDiamondSpots();
+  const { spotsRemaining } = useDiamondSpots();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

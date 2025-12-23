@@ -50,10 +50,8 @@ const DiamondIcon = ({ size = 80, className = '' }: { size?: number; className?:
 
 // Confetti particle component
 const ConfettiParticle = ({
-  index,
   color
 }: {
-  index: number;
   color: string;
 }) => {
   const randomX = useMemo(() => Math.random() * 100, []);
@@ -225,7 +223,6 @@ export const FoundingCelebration = ({ isOpen, onContinue, userName }: FoundingCe
               {confettiParticles.map((particle) => (
                 <ConfettiParticle
                   key={particle.id}
-                  index={particle.id}
                   color={particle.color}
                 />
               ))}
