@@ -118,6 +118,17 @@ function App() {
 
   return (
     <ThemeProvider>
+      {/* Beta Banner */}
+      <div
+        className="fixed top-0 left-0 right-0 z-[100] text-center py-1 text-[10px] tracking-widest uppercase"
+        style={{
+          background: 'rgba(139, 92, 246, 0.08)',
+          color: 'rgba(139, 92, 246, 0.6)',
+          borderBottom: '1px solid rgba(139, 92, 246, 0.1)',
+        }}
+      >
+        private beta
+      </div>
       <SubscriptionProvider>
         <HabitsProvider>
           <Routes>
