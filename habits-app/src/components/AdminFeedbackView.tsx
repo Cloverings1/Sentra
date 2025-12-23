@@ -9,13 +9,24 @@ interface FeedbackEntry {
   user_email: string;
   type: 'feedback' | 'bug';
   priority: 'fyi' | 'minor' | 'important' | 'critical';
+  title: string | null;
   message: string;
+  status: 'open' | 'in_progress' | 'resolved';
+  page: string | null;
   app_version: string | null;
   platform: string | null;
   created_at: string;
   resolved_at: string | null;
   internal_notes: string | null;
 }
+
+type TicketStatus = 'open' | 'in_progress' | 'resolved';
+
+const STATUS_CONFIG: Record<TicketStatus, { label: string; color: string; bg: string }> = {
+  open: { label: 'Open', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
+  in_progress: { label: 'In Progress', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  resolved: { label: 'Resolved', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
+};
 
 interface AdminFeedbackViewProps {
   onBack: () => void;
@@ -25,7 +36,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   fyi: 'FYI',
   minor: 'Minor',
   important: 'Important',
-  critical: 'Critical',
+  critical: 'Mission Critical',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -43,7 +54,7 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
   // Filters
   const [typeFilter, setTypeFilter] = useState<'all' | 'feedback' | 'bug'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'fyi' | 'minor' | 'important' | 'critical'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'resolved'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | TicketStatus>('all');
 
   const fetchFeedback = useCallback(async () => {
     setLoading(true);
@@ -59,10 +70,8 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
       if (priorityFilter !== 'all') {
         query = query.eq('priority', priorityFilter);
       }
-      if (statusFilter === 'open') {
-        query = query.is('resolved_at', null);
-      } else if (statusFilter === 'resolved') {
-        query = query.not('resolved_at', 'is', null);
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
       }
 
       const { data, error } = await query;
@@ -80,24 +89,24 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
     fetchFeedback();
   }, [fetchFeedback]);
 
-  const handleMarkResolved = async (entry: FeedbackEntry) => {
+  const handleStatusChange = async (entry: FeedbackEntry, newStatus: TicketStatus) => {
     try {
-      const newResolvedAt = entry.resolved_at ? null : new Date().toISOString();
+      const resolved_at = newStatus === 'resolved' ? new Date().toISOString() : null;
       const { error } = await supabase
         .from('user_feedback')
-        .update({ resolved_at: newResolvedAt })
+        .update({ status: newStatus, resolved_at })
         .eq('id', entry.id);
 
       if (error) throw error;
 
       setFeedback(prev =>
-        prev.map(f => (f.id === entry.id ? { ...f, resolved_at: newResolvedAt } : f))
+        prev.map(f => (f.id === entry.id ? { ...f, status: newStatus, resolved_at } : f))
       );
       if (selectedEntry?.id === entry.id) {
-        setSelectedEntry({ ...selectedEntry, resolved_at: newResolvedAt });
+        setSelectedEntry({ ...selectedEntry, status: newStatus, resolved_at });
       }
     } catch (error) {
-      console.error('Failed to update resolved status:', error);
+      console.error('Failed to update status:', error);
     }
   };
 
@@ -165,7 +174,7 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
           Back to Settings
         </button>
         <p className="text-label mb-3">ADMIN</p>
-        <h1 className="text-display">User Feedback</h1>
+        <h1 className="text-display">Support Tickets</h1>
       </motion.header>
 
       {/* Filters */}
@@ -222,11 +231,12 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
         >
           <option value="all">All Status</option>
           <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
           <option value="resolved">Resolved</option>
         </select>
 
         <span className="text-[13px] self-center ml-2" style={{ color: 'var(--text-muted)' }}>
-          {feedback.length} {feedback.length === 1 ? 'entry' : 'entries'}
+          {feedback.length} {feedback.length === 1 ? 'ticket' : 'tickets'}
         </span>
       </motion.div>
 
@@ -242,7 +252,7 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
           </div>
         ) : feedback.length === 0 ? (
           <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-            No feedback yet
+            No tickets yet
           </div>
         ) : (
           <div className="space-y-3">
@@ -257,12 +267,18 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                 style={{
                   background: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid rgba(255, 255, 255, 0.06)',
-                  opacity: entry.resolved_at ? 0.6 : 1,
+                  opacity: entry.status === 'resolved' ? 0.6 : 1,
                 }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    {/* Title */}
+                    {entry.title && (
+                      <h3 className="text-[15px] font-medium mb-2 line-clamp-1" style={{ color: 'var(--text-primary)' }}>
+                        {entry.title}
+                      </h3>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span
                         className="text-[11px] px-2 py-0.5 rounded-full"
                         style={{
@@ -281,21 +297,30 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                       >
                         {PRIORITY_LABELS[entry.priority]}
                       </span>
-                      {entry.resolved_at && (
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full"
+                        style={{
+                          background: STATUS_CONFIG[entry.status || 'open'].bg,
+                          color: STATUS_CONFIG[entry.status || 'open'].color,
+                        }}
+                      >
+                        {STATUS_CONFIG[entry.status || 'open'].label}
+                      </span>
+                      {entry.page && (
                         <span
                           className="text-[11px] px-2 py-0.5 rounded-full"
                           style={{
-                            background: 'rgba(34, 197, 94, 0.15)',
-                            color: '#22c55e',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            color: 'var(--text-muted)',
                           }}
                         >
-                          Resolved
+                          {entry.page}
                         </span>
                       )}
                     </div>
                     <p
-                      className="text-[14px] line-clamp-2 mb-2"
-                      style={{ color: 'var(--text-primary)' }}
+                      className="text-[13px] line-clamp-2 mb-2"
+                      style={{ color: 'var(--text-secondary)' }}
                     >
                       {entry.message}
                     </p>
@@ -340,8 +365,8 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
             >
               <div className="p-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
                       className="text-[11px] px-2 py-0.5 rounded-full"
                       style={{
@@ -360,6 +385,15 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                     >
                       {PRIORITY_LABELS[selectedEntry.priority]}
                     </span>
+                    <span
+                      className="text-[11px] px-2 py-0.5 rounded-full"
+                      style={{
+                        background: STATUS_CONFIG[selectedEntry.status || 'open'].bg,
+                        color: STATUS_CONFIG[selectedEntry.status || 'open'].color,
+                      }}
+                    >
+                      {STATUS_CONFIG[selectedEntry.status || 'open'].label}
+                    </span>
                   </div>
                   <button
                     onClick={() => setSelectedEntry(null)}
@@ -372,9 +406,16 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                   </button>
                 </div>
 
+                {/* Title */}
+                {selectedEntry.title && (
+                  <h3 className="text-[18px] font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+                    {selectedEntry.title}
+                  </h3>
+                )}
+
                 {/* Message */}
                 <div className="mb-6">
-                  <p className="text-[15px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-[15px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                     {selectedEntry.message}
                   </p>
                 </div>
@@ -388,6 +429,12 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                     <span style={{ color: 'var(--text-muted)' }}>From</span>
                     <span style={{ color: 'var(--text-primary)' }}>{selectedEntry.user_email}</span>
                   </div>
+                  {selectedEntry.page && (
+                    <div className="flex justify-between text-[13px]">
+                      <span style={{ color: 'var(--text-muted)' }}>Page</span>
+                      <span style={{ color: 'var(--text-primary)' }}>{selectedEntry.page}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-[13px]">
                     <span style={{ color: 'var(--text-muted)' }}>Date</span>
                     <span style={{ color: 'var(--text-primary)' }}>{formatDate(selectedEntry.created_at)}</span>
@@ -438,28 +485,33 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                   )}
                 </div>
 
-                {/* Actions */}
-                <button
-                  onClick={() => handleMarkResolved(selectedEntry)}
-                  className="w-full py-3 rounded-xl text-[14px] font-medium transition-all flex items-center justify-center gap-2"
-                  style={{
-                    background: selectedEntry.resolved_at
-                      ? 'rgba(255, 255, 255, 0.06)'
-                      : 'rgba(34, 197, 94, 0.15)',
-                    color: selectedEntry.resolved_at
-                      ? 'var(--text-secondary)'
-                      : '#22c55e',
-                  }}
-                >
-                  {selectedEntry.resolved_at ? (
-                    'Mark as open'
-                  ) : (
-                    <>
-                      <Check size={16} />
-                      Mark as resolved
-                    </>
-                  )}
-                </button>
+                {/* Status Actions */}
+                <div className="mb-4">
+                  <label className="text-[12px] uppercase tracking-wide mb-3 block" style={{ color: 'var(--text-muted)' }}>
+                    Update Status
+                  </label>
+                  <div className="flex gap-2">
+                    {(Object.keys(STATUS_CONFIG) as TicketStatus[]).map((status) => {
+                      const config = STATUS_CONFIG[status];
+                      const isActive = selectedEntry.status === status;
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => handleStatusChange(selectedEntry, status)}
+                          className="flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all flex items-center justify-center gap-1.5"
+                          style={{
+                            background: isActive ? config.bg : 'rgba(255, 255, 255, 0.04)',
+                            color: isActive ? config.color : 'var(--text-muted)',
+                            border: isActive ? `1px solid ${config.color}40` : '1px solid rgba(255, 255, 255, 0.06)',
+                          }}
+                        >
+                          {status === 'resolved' && isActive && <Check size={14} />}
+                          {config.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

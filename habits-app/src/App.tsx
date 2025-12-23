@@ -15,7 +15,16 @@ import { AuthPage } from './components/AuthPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { ChangelogPage } from './components/ChangelogPage';
+import { FeedbackModal } from './components/FeedbackModal';
+import { MessageCircle } from 'lucide-react';
 import type { ViewType } from './types';
+
+const VIEW_LABELS: Record<ViewType, string> = {
+  home: 'Dashboard',
+  stats: 'Stats',
+  calendar: 'Calendar',
+  settings: 'Settings',
+};
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -31,6 +40,7 @@ const pageVariants = {
 
 const AppLayout = () => {
   const [currentView, setCurrentView] = useState<ViewType>('home');
+  const [showFeedback, setShowFeedback] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -74,6 +84,31 @@ const AppLayout = () => {
         </AnimatePresence>
       </main>
       <Navigation currentView={currentView} onNavigate={setCurrentView} />
+
+      {/* Floating Feedback Button */}
+      <motion.button
+        onClick={() => setShowFeedback(true)}
+        className="fixed bottom-24 right-4 w-12 h-12 rounded-full flex items-center justify-center z-40 shadow-lg"
+        style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+        whileHover={{ scale: 1.05, background: 'rgba(255, 255, 255, 0.12)' }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <MessageCircle size={20} style={{ color: 'var(--text-muted)' }} />
+      </motion.button>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        currentPage={VIEW_LABELS[currentView]}
+      />
     </div>
   );
 };
@@ -83,6 +118,17 @@ function App() {
 
   return (
     <ThemeProvider>
+      {/* Dev Branch Banner */}
+      <div
+        className="fixed top-0 left-0 right-0 z-[100] text-center py-1 text-[10px] tracking-widest uppercase"
+        style={{
+          background: 'rgba(251, 191, 36, 0.08)',
+          color: 'rgba(251, 191, 36, 0.6)',
+          borderBottom: '1px solid rgba(251, 191, 36, 0.1)',
+        }}
+      >
+        dev branch — internal use only
+      </div>
       <SubscriptionProvider>
         <HabitsProvider>
           <Routes>

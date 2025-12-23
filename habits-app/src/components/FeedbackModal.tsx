@@ -6,6 +6,7 @@ import { supabase } from '../utils/supabase';
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentPage?: string;
 }
 
 type FeedbackType = 'feedback' | 'bug';
@@ -16,18 +17,19 @@ const TYPES: { value: FeedbackType; label: string }[] = [
   { value: 'bug', label: 'Bug / Issue' },
 ];
 
-const PRIORITIES: { value: PriorityLevel; label: string; description: string }[] = [
-  { value: 'fyi', label: 'FYI', description: 'just sharing' },
-  { value: 'minor', label: 'Minor', description: 'small issue or suggestion' },
-  { value: 'important', label: 'Important', description: 'affects usability' },
-  { value: 'critical', label: 'Critical', description: 'app not working as expected' },
+const PRIORITIES: { value: PriorityLevel; label: string; description: string; color: string }[] = [
+  { value: 'fyi', label: 'FYI', description: 'just sharing', color: '#6366f1' },
+  { value: 'minor', label: 'Minor', description: 'small issue or suggestion', color: '#3b82f6' },
+  { value: 'important', label: 'Important', description: 'affects usability', color: '#f97316' },
+  { value: 'critical', label: 'Mission Critical', description: 'Jonas gets instant Slack notification. Est. resolution: 1 hour.', color: '#ef4444' },
 ];
 
-export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
+export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown' }: FeedbackModalProps) => {
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [type, setType] = useState<FeedbackType | null>(null);
   const [priority, setPriority] = useState<PriorityLevel | null>(null);
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -38,6 +40,7 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
       setStep(1);
       setType(null);
       setPriority(null);
+      setTitle('');
       setMessage('');
       setSubmitted(false);
     }, 300);
@@ -55,7 +58,7 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !type || !priority || !message.trim()) return;
+    if (!user || !type || !priority || !title.trim() || !message.trim()) return;
 
     setIsSubmitting(true);
     try {
@@ -64,7 +67,10 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
         user_email: user.email,
         type,
         priority,
+        title: title.trim(),
         message: message.trim(),
+        status: 'open',
+        page: currentPage,
         platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
         app_version: '1.0.0',
       });
@@ -80,7 +86,7 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
     }
   };
 
-  const canSubmit = message.trim().length > 0;
+  const canSubmit = title.trim().length > 0 && message.trim().length > 0;
 
   return (
     <AnimatePresence>
@@ -134,8 +140,11 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                       <polyline points="20,6 9,17 4,12" />
                     </svg>
                   </div>
-                  <p className="text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                    Thanks for sharing
+                  <p className="text-[16px] font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                    Ticket Submitted
+                  </p>
+                  <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                    We'll get back to you soon
                   </p>
                 </motion.div>
               ) : (
@@ -148,9 +157,9 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                       className="text-[18px] font-medium tracking-tight"
                       style={{ color: 'var(--text-primary)' }}
                     >
-                      {step === 1 && 'Share feedback'}
-                      {step === 2 && 'How important is this?'}
-                      {step === 3 && 'Tell us more'}
+                      {step === 1 && 'New Ticket'}
+                      {step === 2 && 'Set Priority'}
+                      {step === 3 && 'Ticket Details'}
                     </motion.h2>
                     <button
                       onClick={handleClose}
@@ -201,13 +210,14 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                         <button
                           key={p.value}
                           onClick={() => handlePrioritySelect(p.value)}
-                          className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:bg-white/8"
+                          className="w-full p-4 rounded-xl text-left transition-all duration-200 hover:scale-[1.02]"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            background: `linear-gradient(135deg, ${p.color}15 0%, ${p.color}08 100%)`,
+                            border: `1px solid ${p.color}30`,
+                            borderLeft: `3px solid ${p.color}`,
                           }}
                         >
-                          <span className="text-[15px] block" style={{ color: 'var(--text-primary)' }}>
+                          <span className="text-[15px] block font-medium" style={{ color: p.color }}>
                             {p.label}
                           </span>
                           <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
@@ -225,15 +235,15 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                     </motion.div>
                   )}
 
-                  {/* Step 3: Message Input */}
+                  {/* Step 3: Ticket Details */}
                   {step === 3 && (
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8 }}
                     >
-                      {/* Type & Priority badges */}
-                      <div className="flex gap-2 mb-4">
+                      {/* Type & Priority & Status badges */}
+                      <div className="flex flex-wrap gap-2 mb-5">
                         <span
                           className="text-[11px] px-2 py-1 rounded-full"
                           style={{
@@ -241,23 +251,54 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                             color: 'var(--text-muted)',
                           }}
                         >
-                          {type === 'feedback' ? 'Feedback' : 'Bug'}
+                          {type === 'feedback' ? 'Feedback' : 'Bug Report'}
                         </span>
+                        {(() => {
+                          const p = PRIORITIES.find(pr => pr.value === priority);
+                          return (
+                            <span
+                              className="text-[11px] px-2 py-1 rounded-full"
+                              style={{
+                                background: `${p?.color}20`,
+                                color: p?.color,
+                              }}
+                            >
+                              {p?.label}
+                            </span>
+                          );
+                        })()}
                         <span
                           className="text-[11px] px-2 py-1 rounded-full"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            color: 'var(--text-muted)',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            color: '#3b82f6',
                           }}
                         >
-                          {PRIORITIES.find(p => p.value === priority)?.label}
+                          Open
                         </span>
                       </div>
 
+                      {/* Title Input */}
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Brief summary of your request"
+                        className="w-full p-4 rounded-xl text-[15px] outline-none transition-all mb-3"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          color: 'var(--text-primary)',
+                        }}
+                        autoFocus
+                        maxLength={100}
+                      />
+
+                      {/* Description Input */}
                       <textarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        placeholder="What's on your mind?"
+                        placeholder="Describe the issue or suggestion in detail. Include steps to reproduce if reporting a bug."
                         rows={4}
                         className="w-full p-4 rounded-xl text-[15px] resize-none outline-none transition-all"
                         style={{
@@ -265,7 +306,6 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                           border: '1px solid rgba(255, 255, 255, 0.08)',
                           color: 'var(--text-primary)',
                         }}
-                        autoFocus
                       />
 
                       <div className="flex gap-3 mt-6">
@@ -290,7 +330,7 @@ export const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
                             opacity: isSubmitting ? 0.6 : 1,
                           }}
                         >
-                          {isSubmitting ? 'Sending...' : 'Send'}
+                          {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
                         </button>
                       </div>
                     </motion.div>
