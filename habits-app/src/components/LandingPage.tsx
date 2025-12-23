@@ -36,6 +36,7 @@ export const LandingPage = () => {
     {
       name: 'Founding',
       price: '$0',
+      originalPrice: '$249',
       period: '/lifetime',
       description: 'Help shape what comes next.',
       features: [
@@ -286,7 +287,16 @@ export const LandingPage = () => {
                           {plan.name}
                         </h3>
                       </div>
-                      <div className="flex items-baseline">
+                      <div className="flex items-baseline gap-2">
+                        {/* Original price - slashed */}
+                        {'originalPrice' in plan && plan.originalPrice && foundingAvailable && (
+                          <span
+                            className="text-[20px] font-medium line-through"
+                            style={{ color: '#4F4F4F' }}
+                          >
+                            {plan.originalPrice}
+                          </span>
+                        )}
                         <span
                           className="text-[32px] font-semibold"
                           style={{ color: isFounding && foundingAvailable ? 'rgba(6, 182, 212, 0.9)' : '#F5F5F5' }}
@@ -304,13 +314,37 @@ export const LandingPage = () => {
                     {plan.description}
                   </p>
 
-                  {/* Founding slots remaining - inside card, subtle */}
+                  {/* Founding slots remaining - prominent urgency indicator */}
                   {isFounding && !spotsLoading && !spotsError && (
-                    <p className="text-[13px] text-[#4F4F4F] mb-6">
-                      {spotsRemaining > 0
-                        ? `${spotsRemaining} founding spot${spotsRemaining === 1 ? '' : 's'} remaining`
-                        : 'Founding access is closed'}
-                    </p>
+                    <div className="mb-6">
+                      {spotsRemaining > 0 ? (
+                        <div
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.1))',
+                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                          }}
+                        >
+                          <span
+                            className="flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold"
+                            style={{
+                              background: 'rgba(6, 182, 212, 0.3)',
+                              color: '#22d3ee',
+                              boxShadow: '0 0 8px rgba(6, 182, 212, 0.4)'
+                            }}
+                          >
+                            {spotsRemaining}
+                          </span>
+                          <span className="text-[13px] font-medium" style={{ color: '#22d3ee' }}>
+                            founding spot{spotsRemaining === 1 ? '' : 's'} remaining
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-[13px] text-[#4F4F4F]">
+                          Founding access is closed
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   <ul className="space-y-4 mb-10 flex-grow">
