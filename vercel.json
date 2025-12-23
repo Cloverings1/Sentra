@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd habits-app && npm install && npm run build",
-  "outputDirectory": "habits-app/dist",
-  "installCommand": "cd habits-app && npm install",
-  "framework": "vite"
-}
