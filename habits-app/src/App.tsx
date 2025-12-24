@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -116,6 +116,22 @@ const AppLayout = () => {
   );
 };
 
+// Wrapper for landing page route to handle no_access param
+function LandingPageRoute() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const hasNoAccessParam = searchParams.has('no_access');
+
+  // If user is authenticated but has no access, show landing page
+  // If user is authenticated and has access, redirect to app
+  // If user is not authenticated, show landing page
+  if (user && !hasNoAccessParam) {
+    return <Navigate to="/app" replace />;
+  }
+
+  return <LandingPage />;
+}
+
 function App() {
   const { user } = useAuth();
 
@@ -138,7 +154,7 @@ function App() {
             <Routes>
               <Route
                 path="/"
-                element={user ? <Navigate to="/app" replace /> : <LandingPage />}
+                element={<LandingPageRoute />}
               />
               <Route
                 path="/login"
