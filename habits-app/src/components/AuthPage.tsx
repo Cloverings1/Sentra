@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
+import { createProTrialCheckout, createFoundingCheckout } from '../utils/stripe';
 import { TermsModal } from './TermsModal';
 import { FoundingCelebration } from './FoundingCelebration';
 import { useDiamondSpots, claimFoundingSlot } from '../hooks/useDiamondSpots';
@@ -112,13 +113,39 @@ export const AuthPage = () => {
         }
       }
 
+      // Get the plan parameter from URL
+      const planParam = searchParams.get('plan');
+
       // Wait for the loading animation to complete, then show appropriate celebration
-      setTimeout(() => {
+      setTimeout(async () => {
         if (claimedFoundingSpot) {
           setShowSuccess(false); // Hide the loading modal
           setShowFoundingCelebration(true); // Show epic founding celebration
+          // After celebration, redirect to app (founding members don't need to pay)
+        } else if (planParam === 'pro') {
+          // User selected Pro trial - initiate checkout
+          try {
+            await createProTrialCheckout();
+          } catch (checkoutErr) {
+            console.error('Failed to initiate Pro checkout:', checkoutErr);
+            // Fallback: show regular celebration
+            setShowSuccess(false);
+            setShowCelebration(true);
+          }
+        } else if (planParam === 'diamond' || planParam === 'founding') {
+          // User selected Founding - initiate checkout
+          try {
+            await createFoundingCheckout();
+          } catch (checkoutErr) {
+            console.error('Failed to initiate Founding checkout:', checkoutErr);
+            // Fallback: show regular celebration
+            setShowSuccess(false);
+            setShowCelebration(true);
+          }
         } else {
-          setShowCelebration(true); // Show regular celebration
+          // No plan specified or free plan - show regular celebration
+          setShowSuccess(false);
+          setShowCelebration(true);
         }
       }, 1600);
     } catch (err: unknown) {

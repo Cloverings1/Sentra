@@ -110,6 +110,27 @@ async function handleSubscriptionCreated(
     is_trial_user: isTrialing,
   });
 
+  // Also update new billing schema if available
+  const userId = subscription.metadata?.supabase_user_id;
+  if (userId) {
+    const newStatus =
+      status === "trialing" ? "trialing" : status === "active" ? "active" : status === "past_due" ? "past_due" : "canceled";
+    await supabase.from("user_entitlements").upsert(
+      {
+        user_id: userId,
+        plan: "pro",
+        status: newStatus,
+        stripe_subscription_id: subscription.id,
+        trial_ends_at: trialEnd,
+        current_period_ends_at: new Date(
+          subscription.current_period_end * 1000
+        ).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+  }
+
   if (!result.success) {
     return new Response(JSON.stringify({ error: result.error }), {
       status: 500,
@@ -165,6 +186,27 @@ async function handleSubscriptionUpdated(
     ...(isTrialing && { is_trial_user: true }),
   });
 
+  // Also update new billing schema if available
+  const userId = subscription.metadata?.supabase_user_id;
+  if (userId) {
+    const newStatus =
+      status === "trialing" ? "trialing" : status === "active" ? "active" : status === "past_due" ? "past_due" : "canceled";
+    await supabase.from("user_entitlements").upsert(
+      {
+        user_id: userId,
+        plan: "pro",
+        status: newStatus,
+        stripe_subscription_id: subscription.id,
+        trial_ends_at: trialEnd,
+        current_period_ends_at: new Date(
+          subscription.current_period_end * 1000
+        ).toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+  }
+
   if (!result.success) {
     return new Response(JSON.stringify({ error: result.error }), {
       status: 500,
@@ -178,6 +220,98 @@ async function handleSubscriptionUpdated(
 
   return new Response(
     JSON.stringify({ received: true, action: "subscription_updated" }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
+// Handle checkout.session.completed event (for one-time payments like Founding)
+async function handleCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session
+): Promise<Response> {
+  const customerId =
+    typeof session.customer === "string" ? session.customer : session.customer?.id;
+
+  if (!customerId) {
+    console.error("No customer ID in checkout session");
+    return new Response(JSON.stringify({ error: "No customer in session" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const planType = session.metadata?.plan_type;
+
+  // Handle founding membership purchase
+  if (planType === "founding") {
+    const userId = session.metadata?.supabase_user_id;
+
+    if (!userId) {
+      console.error("No user ID in founding checkout session");
+      return new Response(JSON.stringify({ error: "No user in session" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    try {
+      // Update user entitlements to founding plan
+      const { error: updateError } = await supabase
+        .from("user_entitlements")
+        .upsert(
+          {
+            user_id: userId,
+            plan: "founding",
+            status: "active",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (updateError) {
+        console.error("Error updating user entitlements:", updateError);
+        throw updateError;
+      }
+
+      // Update user profile for backward compatibility
+      await updateUserProfile(customerId, {
+        subscription_status: "diamond",
+        subscription_id: null,
+        price_id: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        trial_start: null,
+        trial_end: null,
+        is_trial_user: false,
+      });
+
+      console.log(`Founding membership activated for user ${userId}`);
+
+      return new Response(
+        JSON.stringify({ received: true, action: "founding_payment_completed" }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      console.error(`Error processing founding checkout: ${errorMessage}`);
+      return new Response(
+        JSON.stringify({ error: `Error processing founding checkout: ${errorMessage}` }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  // Acknowledge other checkout session types
+  return new Response(
+    JSON.stringify({ received: true, action: "checkout_session_completed" }),
     {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -204,6 +338,20 @@ async function handleSubscriptionDeleted(
     trial_end: null,
     // Keep is_trial_user for analytics tracking
   });
+
+  // Also update new billing schema if available
+  const userId = subscription.metadata?.supabase_user_id;
+  if (userId) {
+    await supabase.from("user_entitlements").upsert(
+      {
+        user_id: userId,
+        plan: "pro",
+        status: "canceled",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+  }
 
   if (!result.success) {
     return new Response(JSON.stringify({ error: result.error }), {
@@ -298,6 +446,11 @@ serve(async (req: Request): Promise<Response> => {
       case "customer.subscription.deleted":
         return await handleSubscriptionDeleted(
           event.data.object as Stripe.Subscription
+        );
+
+      case "checkout.session.completed":
+        return await handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session
         );
 
       default:

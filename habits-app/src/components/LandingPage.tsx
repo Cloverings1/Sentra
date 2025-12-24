@@ -109,7 +109,7 @@ export const LandingPage = () => {
            className="flex flex-col sm:flex-row items-center gap-6"
         >
             <button
-              onClick={() => navigate('/login?mode=signup')}
+              onClick={() => navigate('/login?mode=signup&plan=pro')}
               className="btn-pill-primary"
             >
               Start free trial
@@ -277,7 +277,10 @@ export const LandingPage = () => {
 
                   {/* CTA Button */}
                   <button
-                    onClick={() => foundingAvailable || !isFounding ? navigate('/login?mode=signup') : undefined}
+                    onClick={() => {
+                      if (isFounding && !foundingAvailable) return;
+                      navigate(`/login?mode=signup&plan=${plan.tier}`);
+                    }}
                     disabled={isFounding && !foundingAvailable}
                     className="w-full py-3.5 px-6 rounded-full text-[14px] font-medium transition-all duration-200 disabled:cursor-not-allowed"
                     style={
@@ -323,7 +326,7 @@ export const LandingPage = () => {
             You can always change later.
           </p>
           <button
-            onClick={() => navigate('/login?mode=signup')}
+            onClick={() => navigate('/login?mode=signup&plan=pro')}
             className="btn-pill-primary"
           >
             Start free trial

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import { EntitlementProvider } from './contexts/EntitlementContext';
 import { HabitsProvider } from './contexts/HabitsContext';
 import { useAuth } from './contexts/AuthContext';
 import { Navigation } from './components/Navigation';
@@ -12,6 +13,7 @@ import { Stats } from './components/Stats';
 import { Settings } from './components/Settings';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
+import { BillingReturnPage } from './components/BillingReturnPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { ChangelogPage } from './components/ChangelogPage';
@@ -131,27 +133,30 @@ function App() {
         beta
       </div>
       <SubscriptionProvider>
-        <HabitsProvider>
-          <Routes>
-            <Route
-              path="/"
-              element={user ? <Navigate to="/app" replace /> : <LandingPage />}
-            />
-            <Route
-              path="/login"
-              element={user ? <Navigate to="/app" replace /> : <AuthPage />}
-            />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/changelog" element={<ChangelogPage />} />
-            <Route path="/app/*" element={
-              <TrialGuard>
-                <AppLayout />
-              </TrialGuard>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </HabitsProvider>
+        <EntitlementProvider>
+          <HabitsProvider>
+            <Routes>
+              <Route
+                path="/"
+                element={user ? <Navigate to="/app" replace /> : <LandingPage />}
+              />
+              <Route
+                path="/login"
+                element={user ? <Navigate to="/app" replace /> : <AuthPage />}
+              />
+              <Route path="/billing/return" element={<BillingReturnPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/changelog" element={<ChangelogPage />} />
+              <Route path="/app/*" element={
+                <TrialGuard>
+                  <AppLayout />
+                </TrialGuard>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </HabitsProvider>
+        </EntitlementProvider>
       </SubscriptionProvider>
     </ThemeProvider>
   );

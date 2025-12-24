@@ -2,6 +2,9 @@ export type RecurrenceType = 'daily' | 'weekly' | 'custom';
 
 export type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'canceled' | 'past_due' | 'diamond';
 
+export type Plan = 'none' | 'pro' | 'founding';
+export type EntitlementStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
+
 export interface UserProfile {
   id: string;
   stripe_customer_id: string | null;
@@ -20,6 +23,16 @@ export interface TrialState {
   isExpired: boolean;
   daysRemaining: number;
   trialEnd: Date | null;
+}
+
+export interface UserEntitlement {
+  user_id: string;
+  plan: Plan;
+  status: EntitlementStatus;
+  stripe_subscription_id: string | null;
+  trial_ends_at: string | null;
+  current_period_ends_at: string | null;
+  updated_at: string;
 }
 
 export interface CustomRecurrence {
