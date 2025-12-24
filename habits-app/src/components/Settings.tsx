@@ -345,24 +345,13 @@ export const Settings = () => {
               >
                 Lifetime Access
               </span>
-            ) : isPro ? (
+            ) : isPro || isTrialing ? (
               <button
                 onClick={openPortal}
                 className="text-[14px] font-medium px-4 py-2 rounded-lg transition-all hover:bg-white/10"
                 style={{ color: 'var(--text-primary)' }}
               >
                 Manage
-              </button>
-            ) : isTrialing ? (
-              <button
-                onClick={() => setShowPaywall(true)}
-                className="text-[14px] font-medium px-4 py-2 rounded-lg transition-all"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  color: '#0B0B0B',
-                }}
-              >
-                Upgrade Now
               </button>
             ) : (
               <button
