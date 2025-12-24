@@ -348,25 +348,20 @@ export const AuthPage = () => {
                     Setting everything up for you
                   </p>
 
-                  {/* Progress Bar */}
+                  {/* Progress Bar - Minimal blue */}
                   <div
-                    className="h-2 rounded-full overflow-hidden mx-auto"
+                    className="h-1 rounded-full overflow-hidden mx-auto"
                     style={{
-                      maxWidth: '280px',
-                      background: 'rgba(255, 255, 255, 0.06)',
+                      maxWidth: '200px',
+                      background: 'rgba(255, 255, 255, 0.04)',
                     }}
                   >
                     <motion.div
                       className="h-full rounded-full"
                       style={{
                         width: `${loadingProgress}%`,
-                        background: `linear-gradient(90deg, ${HABIT_COLORS[0]}, ${HABIT_COLORS[1]}, ${HABIT_COLORS[3]}, ${HABIT_COLORS[5]}, ${HABIT_COLORS[6]})`,
-                        backgroundSize: '200% 100%',
+                        background: '#3b82f6',
                       }}
-                      animate={{
-                        backgroundPosition: ['0% 0%', '100% 0%'],
-                      }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     />
                   </div>
                 </motion.div>

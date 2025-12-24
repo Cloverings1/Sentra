@@ -158,22 +158,18 @@ export const FoundingCelebration = ({ isOpen, onContinue, userName }: FoundingCe
     }
   }, [isOpen]);
 
-  // Generate confetti particles
+  // Generate confetti particles - fewer for subtlety
   const confettiParticles = useMemo(() =>
-    Array.from({ length: 60 }, (_, i) => ({
+    Array.from({ length: 15 }, (_, i) => ({
       id: i,
       color: confettiColors[i % confettiColors.length],
     })), []);
 
-  // Generate sparkle positions
+  // Generate sparkle positions - fewer for subtlety
   const sparkles = useMemo(() => [
-    { x: 15, y: 20, delay: 0 },
-    { x: 85, y: 25, delay: 0.3 },
-    { x: 25, y: 70, delay: 0.6 },
-    { x: 75, y: 65, delay: 0.9 },
-    { x: 50, y: 15, delay: 1.2 },
-    { x: 10, y: 50, delay: 0.4 },
-    { x: 90, y: 55, delay: 0.7 },
+    { x: 15, y: 25, delay: 0 },
+    { x: 85, y: 30, delay: 0.4 },
+    { x: 20, y: 70, delay: 0.8 },
   ], []);
 
   return (
@@ -218,8 +214,8 @@ export const FoundingCelebration = ({ isOpen, onContinue, userName }: FoundingCe
               }}
             />
 
-            {/* Confetti Layer */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Confetti Layer - behind content */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-[1]">
               {confettiParticles.map((particle) => (
                 <ConfettiParticle
                   key={particle.id}
@@ -228,21 +224,21 @@ export const FoundingCelebration = ({ isOpen, onContinue, userName }: FoundingCe
               ))}
             </div>
 
-            {/* Sparkles Layer */}
-            <div className="absolute inset-0 pointer-events-none">
+            {/* Sparkles Layer - behind content */}
+            <div className="absolute inset-0 pointer-events-none z-[1]">
               {sparkles.map((sparkle, i) => (
                 <Sparkle key={i} {...sparkle} />
               ))}
             </div>
           </motion.div>
 
-          {/* Main Content */}
+          {/* Main Content - above particles */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 50 }}
             transition={{ duration: 0.6, delay: 0.2, ease: [0.32, 0.72, 0, 1] }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-[480px] p-10 text-center"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[102] w-full max-w-[480px] p-10 text-center"
           >
             {showContent && (
               <>
