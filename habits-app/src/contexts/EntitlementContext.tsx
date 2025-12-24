@@ -34,23 +34,10 @@ export const EntitlementProvider = ({ children }: { children: ReactNode }) => {
         .from('user_entitlements')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        // No entitlement found yet - user might not have initialized billing
-        if (error.code === 'PGRST116') {
-          setEntitlement({
-            user_id: user.id,
-            plan: 'none',
-            status: 'none',
-            stripe_subscription_id: null,
-            trial_ends_at: null,
-            current_period_ends_at: null,
-            updated_at: new Date().toISOString(),
-          });
-        } else {
-          console.error('Error fetching entitlement:', error);
-        }
+        console.error('Error fetching entitlement:', error);
       } else if (data) {
         setEntitlement({
           user_id: data.user_id,
@@ -60,6 +47,17 @@ export const EntitlementProvider = ({ children }: { children: ReactNode }) => {
           trial_ends_at: data.trial_ends_at,
           current_period_ends_at: data.current_period_ends_at,
           updated_at: data.updated_at,
+        });
+      } else {
+        // No entitlement row exists yet - user has not initialized billing
+        setEntitlement({
+          user_id: user.id,
+          plan: 'none',
+          status: 'none',
+          stripe_subscription_id: null,
+          trial_ends_at: null,
+          current_period_ends_at: null,
+          updated_at: new Date().toISOString(),
         });
       }
     } catch (err) {
