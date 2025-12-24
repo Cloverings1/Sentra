@@ -2,134 +2,105 @@ import { motion } from 'framer-motion';
 
 export const MaintenancePage = () => {
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex items-center justify-center relative overflow-hidden">
-      {/* Animated gradient background */}
-      <div className="absolute inset-0">
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(232, 93, 79, 0.08) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-          animate={{
-            x: [0, -40, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.15, 1],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      </div>
+    <div className="min-h-screen bg-[#000000] flex items-center justify-center relative overflow-hidden selection:bg-white/10">
+      {/* Ambient glow - ultra subtle */}
+      <motion.div
+        className="absolute w-[800px] h-[800px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+        animate={{
+          opacity: [0.5, 0.8, 0.5],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
 
       {/* Content */}
-      <div className="relative z-10 text-center px-6 max-w-lg">
-        {/* Logo/Icon */}
+      <div className="relative z-10 text-center px-6">
+        {/* Main headline */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
-          className="mb-12"
-        >
-          <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center relative">
-            <motion.div
-              className="absolute inset-0 rounded-2xl"
-              style={{
-                background: 'linear-gradient(135deg, rgba(232, 93, 79, 0.2), rgba(139, 92, 246, 0.2))',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-              }}
-              animate={{
-                boxShadow: [
-                  '0 0 40px rgba(232, 93, 79, 0.2)',
-                  '0 0 60px rgba(139, 92, 246, 0.2)',
-                  '0 0 40px rgba(232, 93, 79, 0.2)',
-                ],
-              }}
-              transition={{ duration: 3, repeat: Infinity }}
-            />
-            <span className="text-3xl relative z-10">H</span>
-          </div>
-        </motion.div>
-
-        {/* Main text */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
-          className="text-[32px] sm:text-[40px] font-semibold tracking-tight mb-4"
-          style={{
-            background: 'linear-gradient(135deg, #F5F5F5 0%, #A0A0A0 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+          initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{
+            duration: 1.2,
+            ease: [0.25, 0.1, 0.25, 1],
           }}
         >
-          Something Special is Coming...
-        </motion.h1>
+          <h1
+            className="text-[clamp(28px,6vw,52px)] font-medium tracking-[-0.03em] leading-[1.1]"
+            style={{ color: 'rgba(255, 255, 255, 0.95)' }}
+          >
+            Something special
+            <br />
+            <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+              is coming
+            </span>
+          </h1>
+        </motion.div>
 
+        {/* Divider line */}
+        <motion.div
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          transition={{
+            duration: 1,
+            delay: 0.6,
+            ease: [0.25, 0.1, 0.25, 1],
+          }}
+          className="w-12 h-[1px] mx-auto my-8"
+          style={{ background: 'rgba(255, 255, 255, 0.15)' }}
+        />
+
+        {/* Subtext */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
-          className="text-[16px] text-[#6F6F6F] mb-12"
+          transition={{
+            duration: 1,
+            delay: 0.8,
+            ease: [0.25, 0.1, 0.25, 1],
+          }}
+          className="text-[15px] font-normal tracking-[-0.01em]"
+          style={{ color: 'rgba(255, 255, 255, 0.35)' }}
         >
           Please check again later
         </motion.p>
 
-        {/* Animated dots */}
+        {/* Breathing dot indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="flex justify-center gap-2"
+          transition={{ delay: 1.2, duration: 0.8 }}
+          className="mt-16 flex justify-center"
         >
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              className="w-2 h-2 rounded-full bg-[#E85D4F]"
-              animate={{
-                opacity: [0.3, 1, 0.3],
-                scale: [0.8, 1, 0.8],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                delay: i * 0.2,
-                ease: 'easeInOut',
-              }}
-            />
-          ))}
+          <motion.div
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: 'rgba(255, 255, 255, 0.6)' }}
+            animate={{
+              opacity: [0.3, 0.8, 0.3],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
         </motion.div>
       </div>
 
-      {/* Subtle grid overlay */}
+      {/* Bottom gradient fade */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.02]"
+        className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
         style={{
-          backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)',
         }}
       />
     </div>
