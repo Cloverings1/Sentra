@@ -16,6 +16,7 @@ import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { ChangelogPage } from './components/ChangelogPage';
 import { FeedbackModal } from './components/FeedbackModal';
+import { TrialGuard } from './components/TrialGuard';
 import { MessageCircle } from 'lucide-react';
 import type { ViewType } from './types';
 
@@ -143,7 +144,11 @@ function App() {
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/changelog" element={<ChangelogPage />} />
-            <Route path="/app/*" element={<AppLayout />} />
+            <Route path="/app/*" element={
+              <TrialGuard>
+                <AppLayout />
+              </TrialGuard>
+            } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </HabitsProvider>

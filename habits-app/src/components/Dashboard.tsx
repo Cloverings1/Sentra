@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { AddHabitModal } from './AddHabitModal';
 import { EditHabitModal } from './EditHabitModal';
 import { WeekView } from './WeekView';
 import { HabitCard } from './HabitCard';
+import { TrialBanner } from './TrialBanner';
+import { PaywallModal } from './PaywallModal';
 import { formatDate } from '../utils/dateUtils';
 import type { Habit } from '../types';
 
@@ -16,7 +19,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
+  const { isTrialing } = useSubscription();
 
   // Auto-redirect to calendar after 7 total completions (one-time)
   useEffect(() => {
@@ -126,6 +131,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
           )}
         </div>
       </header>
+
+      {/* Trial Banner - shows during active trial */}
+      {isTrialing && (
+        <TrialBanner onUpgradeClick={() => setShowUpgradeModal(true)} />
+      )}
 
       {/* Date Strip */}
       <WeekView selectedDate={selectedDate} onSelectDate={setSelectedDate} />
@@ -244,6 +254,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         isOpen={editingHabit !== null}
         onClose={() => setEditingHabit(null)}
         habit={editingHabit}
+      />
+      <PaywallModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="habit_limit"
       />
     </div>
   );

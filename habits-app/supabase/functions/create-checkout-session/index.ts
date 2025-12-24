@@ -168,7 +168,7 @@ serve(async (req: Request): Promise<Response> => {
     const defaultSuccessUrl = `${req.headers.get("origin") || "http://localhost:5173"}/?checkout=success`;
     const defaultCancelUrl = `${req.headers.get("origin") || "http://localhost:5173"}/?checkout=canceled`;
 
-    // Create the Stripe Checkout Session
+    // Create the Stripe Checkout Session with 7-day trial
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
@@ -187,12 +187,20 @@ serve(async (req: Request): Promise<Response> => {
       billing_address_collection: "auto",
       // Automatic tax calculation (if configured in Stripe)
       automatic_tax: { enabled: false },
-      // Subscription data
+      // Subscription data with 7-day trial
       subscription_data: {
         metadata: {
           supabase_user_id: user.id,
         },
+        trial_period_days: 7, // 7-day free trial
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: "cancel", // Cancel subscription if payment fails at trial end
+          },
+        },
       },
+      // Always collect payment method upfront (user won't be charged until trial ends)
+      payment_method_collection: "always",
       // Customer update settings
       customer_update: {
         address: "auto",

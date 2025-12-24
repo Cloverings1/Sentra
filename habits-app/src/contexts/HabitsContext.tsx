@@ -3,13 +3,8 @@ import type { Habit, CompletedDay, RecurrenceType, CustomRecurrence } from '../t
 import { getNextColor } from '../types';
 import { supabase } from '../utils/supabase';
 import { useAuth } from './AuthContext';
-import { useSubscription } from './SubscriptionContext';
-
-// Use hasPremiumAccess instead of isPro to include Diamond tier
 import { formatDate } from '../utils/dateUtils';
 import { storage } from '../utils/storage';
-
-const FREE_HABIT_LIMIT = 3;
 
 // Capitalize first letter of a name
 const capitalizeFirstLetter = (name: string): string => {
@@ -17,20 +12,11 @@ const capitalizeFirstLetter = (name: string): string => {
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
-export class HabitLimitError extends Error {
-  code = 'HABIT_LIMIT_REACHED';
-  constructor() {
-    super('You have reached the maximum number of habits for your plan');
-    this.name = 'HabitLimitError';
-  }
-}
-
 interface HabitsContextType {
   habits: Habit[];
   completedDays: CompletedDay[];
   userName: string;
   loading: boolean;
-  habitLimitReached: boolean;
   addHabit: (name: string, color?: string, recurrence?: RecurrenceType, customDays?: CustomRecurrence) => Promise<void>;
   removeHabit: (id: string) => Promise<void>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
@@ -47,14 +33,10 @@ const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
 
 export const HabitsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const { hasPremiumAccess } = useSubscription();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedDays, setCompletedDays] = useState<CompletedDay[]>([]);
   const [userName, setUserNameState] = useState<string>('');
   const [loading, setLoading] = useState(true);
-
-  // Compute whether the habit limit has been reached
-  const habitLimitReached = !hasPremiumAccess && habits.length >= FREE_HABIT_LIMIT;
 
   const fetchHabits = useCallback(async () => {
     if (!user) return;
@@ -114,11 +96,6 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
   const addHabit = useCallback(async (name: string, color?: string, recurrence: RecurrenceType = 'daily', customDays?: CustomRecurrence) => {
     if (!user) return;
 
-    // Check habit limit for free users
-    if (!hasPremiumAccess && habits.length >= FREE_HABIT_LIMIT) {
-      throw new HabitLimitError();
-    }
-
     const usedColors = habits.map(h => h.color);
     const habitColor = color || getNextColor(usedColors);
 
@@ -148,7 +125,7 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setHabits(prev => [...prev, newHabit]);
-  }, [user, habits, hasPremiumAccess]);
+  }, [user, habits]);
 
   const removeHabit = useCallback(async (id: string) => {
     if (!user) return;
@@ -302,7 +279,6 @@ export const HabitsProvider = ({ children }: { children: ReactNode }) => {
         completedDays,
         userName,
         loading,
-        habitLimitReached,
         addHabit,
         removeHabit,
         updateHabit,

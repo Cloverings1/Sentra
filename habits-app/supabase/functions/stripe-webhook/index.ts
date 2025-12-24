@@ -22,11 +22,14 @@ const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 
 // Type definitions for better type safety
 interface SubscriptionUpdate {
-  subscription_status: "free" | "active" | "canceled" | "past_due";
+  subscription_status: "free" | "trialing" | "active" | "canceled" | "past_due";
   subscription_id: string | null;
   price_id: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  trial_start?: string | null;
+  trial_end?: string | null;
+  is_trial_user?: boolean;
   updated_at: string;
 }
 
@@ -54,11 +57,12 @@ async function updateUserProfile(
 // Map Stripe subscription status to our internal status
 function mapStripeStatus(
   stripeStatus: Stripe.Subscription.Status
-): "free" | "active" | "canceled" | "past_due" {
+): "free" | "trialing" | "active" | "canceled" | "past_due" {
   switch (stripeStatus) {
     case "active":
-    case "trialing":
       return "active";
+    case "trialing":
+      return "trialing"; // Now properly tracked as distinct status
     case "past_due":
     case "unpaid":
       return "past_due";
@@ -84,6 +88,15 @@ async function handleSubscriptionCreated(
   const priceId = subscription.items.data[0]?.price.id ?? null;
   const status = mapStripeStatus(subscription.status);
 
+  // Extract trial information
+  const isTrialing = subscription.status === "trialing";
+  const trialStart = subscription.trial_start
+    ? new Date(subscription.trial_start * 1000).toISOString()
+    : null;
+  const trialEnd = subscription.trial_end
+    ? new Date(subscription.trial_end * 1000).toISOString()
+    : null;
+
   const result = await updateUserProfile(customerId, {
     subscription_status: status,
     subscription_id: subscription.id,
@@ -92,6 +105,9 @@ async function handleSubscriptionCreated(
       subscription.current_period_end * 1000
     ).toISOString(),
     cancel_at_period_end: subscription.cancel_at_period_end,
+    trial_start: trialStart,
+    trial_end: trialEnd,
+    is_trial_user: isTrialing,
   });
 
   if (!result.success) {
@@ -102,7 +118,7 @@ async function handleSubscriptionCreated(
   }
 
   console.log(
-    `Subscription created for customer ${customerId}: ${subscription.id}`
+    `Subscription created for customer ${customerId}: ${subscription.id}, status: ${status}, trial: ${isTrialing}`
   );
 
   return new Response(
@@ -126,6 +142,15 @@ async function handleSubscriptionUpdated(
   const priceId = subscription.items.data[0]?.price.id ?? null;
   const status = mapStripeStatus(subscription.status);
 
+  // Extract trial information - preserve is_trial_user if they were ever trialing
+  const isTrialing = subscription.status === "trialing";
+  const trialStart = subscription.trial_start
+    ? new Date(subscription.trial_start * 1000).toISOString()
+    : null;
+  const trialEnd = subscription.trial_end
+    ? new Date(subscription.trial_end * 1000).toISOString()
+    : null;
+
   const result = await updateUserProfile(customerId, {
     subscription_status: status,
     subscription_id: subscription.id,
@@ -134,6 +159,10 @@ async function handleSubscriptionUpdated(
       subscription.current_period_end * 1000
     ).toISOString(),
     cancel_at_period_end: subscription.cancel_at_period_end,
+    trial_start: trialStart,
+    trial_end: trialEnd,
+    // Only set is_trial_user to true (once a trial user, always tracked as such)
+    ...(isTrialing && { is_trial_user: true }),
   });
 
   if (!result.success) {
@@ -171,6 +200,9 @@ async function handleSubscriptionDeleted(
     price_id: null,
     current_period_end: null,
     cancel_at_period_end: false,
+    trial_start: null,
+    trial_end: null,
+    // Keep is_trial_user for analytics tracking
   });
 
   if (!result.success) {

@@ -1,6 +1,6 @@
 export type RecurrenceType = 'daily' | 'weekly' | 'custom';
 
-export type SubscriptionStatus = 'free' | 'active' | 'canceled' | 'past_due' | 'diamond';
+export type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'canceled' | 'past_due' | 'diamond';
 
 export interface UserProfile {
   id: string;
@@ -10,6 +10,16 @@ export interface UserProfile {
   price_id: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  trial_start: string | null;
+  trial_end: string | null;
+  is_trial_user: boolean;
+}
+
+export interface TrialState {
+  isTrialing: boolean;
+  isExpired: boolean;
+  daysRemaining: number;
+  trialEnd: Date | null;
 }
 
 export interface CustomRecurrence {

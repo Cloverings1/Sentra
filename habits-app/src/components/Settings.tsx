@@ -43,8 +43,8 @@ export const Settings = () => {
     getDisplayName,
     getAvatarUrl,
   } = useAuth();
-  const { isPro, isDiamond, status, currentPeriodEnd, cancelAtPeriodEnd, openPortal } = useSubscription();
-  const hasPremiumAccess = isPro || isDiamond;
+  const { isPro, isDiamond, isTrialing, trialState, status, currentPeriodEnd, cancelAtPeriodEnd, openPortal } = useSubscription();
+  const hasPremiumAccess = isPro || isDiamond || (isTrialing && !trialState?.isExpired);
   const navigate = useNavigate();
 
   // Existing state
@@ -298,25 +298,31 @@ export const Settings = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {isDiamond ? 'Diamond Plan' : isPro ? 'Pro Plan' : 'Free Plan'}
+                  {isDiamond ? 'Diamond Plan' : isPro ? 'Pro Plan' : isTrialing ? 'Pro Trial' : 'No Plan'}
                 </span>
-                {hasPremiumAccess && (
+                {(hasPremiumAccess || isTrialing) && (
                   <span
                     className="text-[11px] px-2 py-0.5 rounded-full"
                     style={{
-                      backgroundColor: cancelAtPeriodEnd
-                        ? 'rgba(251, 191, 36, 0.2)'
-                        : 'rgba(34, 197, 94, 0.2)',
-                      color: cancelAtPeriodEnd ? '#fbbf24' : '#22c55e',
+                      backgroundColor: isTrialing
+                        ? 'rgba(6, 182, 212, 0.2)'
+                        : cancelAtPeriodEnd
+                          ? 'rgba(251, 191, 36, 0.2)'
+                          : 'rgba(34, 197, 94, 0.2)',
+                      color: isTrialing ? '#22d3ee' : cancelAtPeriodEnd ? '#fbbf24' : '#22c55e',
                     }}
                   >
-                    {getSubscriptionStatusLabel()}
+                    {isTrialing ? 'Trial' : getSubscriptionStatusLabel()}
                   </span>
                 )}
               </div>
-              {!hasPremiumAccess && (
+              {isTrialing && trialState && (
                 <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {habits.length}/3 habits used
+                  {trialState.daysRemaining === 0
+                    ? 'Trial ends today'
+                    : trialState.daysRemaining === 1
+                      ? '1 day left in trial'
+                      : `${trialState.daysRemaining} days left in trial`}
                 </p>
               )}
               {isPro && currentPeriodEnd && (
@@ -345,6 +351,17 @@ export const Settings = () => {
               >
                 Manage
               </button>
+            ) : isTrialing ? (
+              <button
+                onClick={() => setShowPaywall(true)}
+                className="text-[14px] font-medium px-4 py-2 rounded-lg transition-all"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  color: '#0B0B0B',
+                }}
+              >
+                Upgrade Now
+              </button>
             ) : (
               <button
                 onClick={() => setShowPaywall(true)}
@@ -354,7 +371,7 @@ export const Settings = () => {
                   color: '#0B0B0B',
                 }}
               >
-                Upgrade to Pro
+                Start Trial
               </button>
             )}
           </div>

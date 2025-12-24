@@ -1,36 +1,36 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useDiamondSpots } from '../hooks/useDiamondSpots';
+import { TrialExpiredModal } from './TrialExpiredModal';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { spotsRemaining, loading: spotsLoading, error: spotsError } = useDiamondSpots();
+  const [showTrialExpired, setShowTrialExpired] = useState(false);
+
+  // Check for trial_expired or no_access query params
+  useEffect(() => {
+    if (searchParams.get('trial_expired') === 'true' || searchParams.get('no_access') === 'true') {
+      setShowTrialExpired(true);
+    }
+  }, [searchParams]);
 
   const pricingPlans = [
-    {
-      name: 'Personal',
-      price: '$0',
-      description: 'Start where you are.',
-      features: [
-        'Up to 3 habits',
-        'Daily & weekly views',
-        'Private by default'
-      ],
-      buttonText: 'Get started',
-      tier: 'free' as const
-    },
     {
       name: 'Pro',
       price: '$9',
       period: '/month',
-      description: 'For ongoing practice.',
+      description: 'For building lasting habits.',
+      trialBadge: '7-day free trial',
       features: [
         'Unlimited habits',
         'Progress over time',
         'Sync across devices',
         'Private and secure'
       ],
-      buttonText: 'Continue with Pro',
+      buttonText: 'Start free trial',
       tier: 'pro' as const
     },
     {
@@ -167,14 +167,18 @@ export const LandingPage = () => {
               onClick={() => navigate('/login?mode=signup')}
               className="btn-pill-primary"
             >
-              Start simply
+              Start free trial
             </button>
-            <div className="flex items-center gap-2 text-[13px] text-[#6F6F6F]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <span>Private & encrypted</span>
+            <div className="flex items-center gap-4 text-[13px] text-[#6F6F6F]">
+              <span>7 days free</span>
+              <span className="opacity-30">|</span>
+              <div className="flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>Private</span>
+              </div>
             </div>
         </motion.div>
       </section>
@@ -241,11 +245,12 @@ export const LandingPage = () => {
           <h2 className="text-section-header">Choose what feels right.</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-[1100px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-[800px]">
           {pricingPlans.map((plan, index) => {
             const isFounding = plan.tier === 'diamond';
             const isPro = plan.tier === 'pro';
             const foundingAvailable = isFounding && spotsRemaining > 0;
+            const hasTrialBadge = 'trialBadge' in plan && plan.trialBadge;
 
             return (
               <motion.div
@@ -271,10 +276,14 @@ export const LandingPage = () => {
                   style={{
                     background: isFounding
                       ? 'linear-gradient(180deg, #141414 0%, #111518 100%)'
-                      : '#141414',
+                      : isPro
+                        ? 'linear-gradient(180deg, #161616 0%, #141414 100%)'
+                        : '#141414',
                     border: isFounding && foundingAvailable
                       ? '1px solid rgba(6, 182, 212, 0.15)'
-                      : '1px solid rgba(255, 255, 255, 0.04)',
+                      : isPro
+                        ? '1px solid rgba(232, 93, 79, 0.12)'
+                        : '1px solid rgba(255, 255, 255, 0.04)',
                   }}
                 >
                   <div className="flex justify-between items-start mb-8">
@@ -282,10 +291,22 @@ export const LandingPage = () => {
                       <div className="flex items-center gap-2 mb-4">
                         <h3
                           className="text-[12px] font-medium tracking-[0.08em] uppercase"
-                          style={{ color: isFounding && foundingAvailable ? 'rgba(6, 182, 212, 0.8)' : '#6F6F6F' }}
+                          style={{ color: isFounding && foundingAvailable ? 'rgba(6, 182, 212, 0.8)' : isPro ? 'var(--accent)' : '#6F6F6F' }}
                         >
                           {plan.name}
                         </h3>
+                        {hasTrialBadge && (
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            style={{
+                              background: 'rgba(232, 93, 79, 0.15)',
+                              color: 'var(--accent)',
+                              border: '1px solid rgba(232, 93, 79, 0.2)',
+                            }}
+                          >
+                            {plan.trialBadge}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-baseline gap-2">
                         {/* Original price - slashed */}
@@ -409,14 +430,14 @@ export const LandingPage = () => {
             Start where you are.
           </h2>
           <p className="text-[15px] text-[#6F6F6F] mb-8 max-w-[360px] mx-auto">
-            No pressure. No streaks to protect. <br />
-            You can always change later.
+            Try it free for 7 days. No pressure. <br />
+            Cancel anytime.
           </p>
           <button
             onClick={() => navigate('/login?mode=signup')}
             className="btn-pill-primary"
           >
-            Begin quietly
+            Start free trial
           </button>
         </motion.div>
       </section>
@@ -439,6 +460,9 @@ export const LandingPage = () => {
           <span>Your data is isolated and protected</span>
         </div>
       </footer>
+
+      {/* Trial Expired Modal */}
+      <TrialExpiredModal isOpen={showTrialExpired} />
     </div>
   );
 };
