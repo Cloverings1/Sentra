@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,8 +18,14 @@ const FEATURES = [
 export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
   const { openCheckout } = useSubscription();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   const handleSubscribe = async () => {
     setIsLoading(true);
@@ -217,7 +224,7 @@ export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
               </p>
               <motion.button
                 type="button"
-                onClick={signOut}
+                onClick={handleSignOut}
                 className="flex items-center justify-center gap-2 w-full py-2 mt-2 rounded-xl transition-colors hover:bg-white/5"
                 whileTap={{ scale: 0.98 }}
               >
