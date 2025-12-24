@@ -43,7 +43,8 @@ export const Settings = () => {
     getDisplayName,
     getAvatarUrl,
   } = useAuth();
-  const { isPro, status, currentPeriodEnd, cancelAtPeriodEnd, openPortal } = useSubscription();
+  const { isPro, isDiamond, status, currentPeriodEnd, cancelAtPeriodEnd, openPortal } = useSubscription();
+  const hasPremiumAccess = isPro || isDiamond;
   const navigate = useNavigate();
 
   // Existing state
@@ -297,9 +298,9 @@ export const Settings = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {isPro ? 'Pro Plan' : 'Free Plan'}
+                  {isDiamond ? 'Diamond Plan' : isPro ? 'Pro Plan' : 'Free Plan'}
                 </span>
-                {isPro && (
+                {hasPremiumAccess && (
                   <span
                     className="text-[11px] px-2 py-0.5 rounded-full"
                     style={{
@@ -313,7 +314,7 @@ export const Settings = () => {
                   </span>
                 )}
               </div>
-              {!isPro && (
+              {!hasPremiumAccess && (
                 <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
                   {habits.length}/3 habits used
                 </p>
@@ -325,7 +326,18 @@ export const Settings = () => {
               )}
             </div>
 
-            {isPro ? (
+            {isDiamond ? (
+              <span
+                className="text-[13px] px-3 py-1.5 rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))',
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  color: '#22d3ee',
+                }}
+              >
+                Lifetime Access
+              </span>
+            ) : isPro ? (
               <button
                 onClick={openPortal}
                 className="text-[14px] font-medium px-4 py-2 rounded-lg transition-all hover:bg-white/10"
@@ -610,11 +622,11 @@ export const Settings = () => {
 
           {/* PDF Report Button */}
           <button
-            onClick={() => isPro ? setShowConsistencyReport(true) : setShowPaywall(true)}
+            onClick={() => hasPremiumAccess ? setShowConsistencyReport(true) : setShowPaywall(true)}
             className="flex items-center gap-2 text-[15px] hover:opacity-70 transition-opacity"
-            style={{ color: isPro ? 'var(--text-primary)' : 'var(--text-muted)' }}
+            style={{ color: hasPremiumAccess ? 'var(--text-primary)' : 'var(--text-muted)' }}
           >
-            {!isPro && <Lock size={14} />}
+            {!hasPremiumAccess && <Lock size={14} />}
             Export consistency report (PDF)
           </button>
 
