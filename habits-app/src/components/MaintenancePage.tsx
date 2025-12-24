@@ -173,6 +173,16 @@ export const MaintenancePage = () => {
           Jonas is with family...back soon
         </motion.p>
 
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 1.3, ease: [0.25, 0.1, 0.25, 1] }}
+          className="text-[11px] uppercase tracking-widest mt-4"
+          style={{ color: 'rgba(255, 255, 255, 0.15)' }}
+        >
+          Maintenance Mode
+        </motion.p>
+
         {/* Gift icon */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
