@@ -20,6 +20,7 @@ import { ChangelogPage } from './components/ChangelogPage';
 import { FeedbackModal } from './components/FeedbackModal';
 import { TrialGuard } from './components/TrialGuard';
 import { MaintenancePage } from './components/MaintenancePage';
+import { StatusPage } from './components/StatusPage';
 import { MessageCircle } from 'lucide-react';
 import type { ViewType } from './types';
 
@@ -139,9 +140,14 @@ function LandingPageRoute() {
 function App() {
   const { user } = useAuth();
 
-  // Maintenance mode - show maintenance page for all routes
+  // Maintenance mode - show maintenance page for all routes except /status
   if (MAINTENANCE_MODE) {
-    return <MaintenancePage />;
+    return (
+      <Routes>
+        <Route path="/status" element={<StatusPage />} />
+        <Route path="*" element={<MaintenancePage />} />
+      </Routes>
+    );
   }
 
   return (
@@ -178,6 +184,7 @@ function App() {
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/changelog" element={<ChangelogPage />} />
+              <Route path="/status" element={<StatusPage />} />
               <Route path="/app/*" element={
                 <TrialGuard>
                   <AppLayout />

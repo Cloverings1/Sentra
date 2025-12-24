@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export const MaintenancePage = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center relative overflow-hidden selection:bg-white/10">
       {/* Falling snowflakes */}
@@ -212,6 +215,18 @@ export const MaintenancePage = () => {
             🎁
           </motion.span>
         </motion.div>
+
+        {/* Status link */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5, duration: 0.8 }}
+          onClick={() => navigate('/status')}
+          className="mt-10 text-[12px] hover:opacity-80 transition-opacity"
+          style={{ color: 'rgba(255, 255, 255, 0.25)' }}
+        >
+          Check system status →
+        </motion.button>
       </div>
     </div>
   );

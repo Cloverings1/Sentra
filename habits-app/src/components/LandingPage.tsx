@@ -368,6 +368,7 @@ export const LandingPage = () => {
             <button onClick={() => navigate('/privacy')} className="hover:text-[#A0A0A0] transition-colors">Privacy</button>
             <button onClick={() => navigate('/terms')} className="hover:text-[#A0A0A0] transition-colors">Terms</button>
             <button onClick={() => navigate('/changelog')} className="hover:text-[#A0A0A0] transition-colors">Changelog</button>
+            <button onClick={() => navigate('/status')} className="hover:text-[#A0A0A0] transition-colors">Status</button>
           </div>
         </div>
         <div className="flex items-center justify-center gap-2 mt-8 pt-8 border-t border-[#181818]/50 text-[12px] text-[#4F4F4F]">
