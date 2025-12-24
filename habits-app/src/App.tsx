@@ -19,8 +19,12 @@ import { TermsPage } from './components/TermsPage';
 import { ChangelogPage } from './components/ChangelogPage';
 import { FeedbackModal } from './components/FeedbackModal';
 import { TrialGuard } from './components/TrialGuard';
+import { MaintenancePage } from './components/MaintenancePage';
 import { MessageCircle } from 'lucide-react';
 import type { ViewType } from './types';
+
+// Set to true to enable maintenance mode
+const MAINTENANCE_MODE = true;
 
 const VIEW_LABELS: Record<ViewType, string> = {
   home: 'Dashboard',
@@ -134,6 +138,11 @@ function LandingPageRoute() {
 
 function App() {
   const { user } = useAuth();
+
+  // Maintenance mode - show maintenance page for all routes
+  if (MAINTENANCE_MODE) {
+    return <MaintenancePage />;
+  }
 
   return (
     <ThemeProvider>
