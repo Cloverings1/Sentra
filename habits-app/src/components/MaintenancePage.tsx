@@ -177,8 +177,13 @@ export const MaintenancePage = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 1.3, ease: [0.25, 0.1, 0.25, 1] }}
-          className="text-[11px] uppercase tracking-widest mt-4"
-          style={{ color: 'rgba(255, 255, 255, 0.15)' }}
+          className="text-[12px] uppercase tracking-widest mt-4 font-medium"
+          style={{
+            background: 'repeating-linear-gradient(45deg, #ef4444, #ef4444 10px, #ffffff 10px, #ffffff 20px)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
         >
           Maintenance Mode
         </motion.p>
