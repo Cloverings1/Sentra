@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
+import { FeedbackModal } from './FeedbackModal';
 
 // Deterministic uptime data - seeded to prevent re-render changes
 // Status: 0 = operational, 1 = degraded, 2 = outage
@@ -124,6 +127,7 @@ const ServiceRow = ({ service, index }: { service: ServiceData; index: number })
 export const StatusPage = () => {
   const navigate = useNavigate();
   const { allOperational, worstStatus } = getCurrentStatus();
+  const [showFeedback, setShowFeedback] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#E85D4F]/30">
@@ -283,6 +287,33 @@ export const StatusPage = () => {
           Uptime calculated over the last 60 days.
         </motion.p>
       </main>
+
+      {/* Floating Feedback Button */}
+      <motion.button
+        onClick={() => setShowFeedback(true)}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center z-40 shadow-lg"
+        style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+        whileHover={{ scale: 1.05, background: 'rgba(255, 255, 255, 0.12)' }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        title="Report an issue"
+      >
+        <MessageCircle size={20} style={{ color: '#A0A0A0' }} />
+      </motion.button>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        currentPage="Status Page"
+        allowAnonymous={true}
+      />
     </div>
   );
 };
