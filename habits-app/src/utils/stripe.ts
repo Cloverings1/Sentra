@@ -15,12 +15,15 @@ export const getStripe = (): Promise<Stripe | null> => {
 export const createCheckoutSession = async (priceId: string): Promise<void> => {
   const { data: sessionData, error } = await supabase.auth.getSession();
 
-  if (error || !sessionData.session) {
+  if (error || !sessionData?.session?.access_token) {
     throw new Error('You must be logged in to subscribe');
   }
 
   const response = await supabase.functions.invoke('create-checkout-session', {
     body: { priceId },
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
   });
 
   if (response.error) {
@@ -44,12 +47,15 @@ export const createCheckoutSession = async (priceId: string): Promise<void> => {
 export const createPortalSession = async (): Promise<void> => {
   const { data: sessionData, error } = await supabase.auth.getSession();
 
-  if (error || !sessionData.session) {
+  if (error || !sessionData?.session?.access_token) {
     throw new Error('You must be logged in to manage subscription');
   }
 
   const response = await supabase.functions.invoke('create-portal-session', {
     body: {},
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
   });
 
   if (response.error) {
@@ -80,12 +86,15 @@ export const PRICE_IDS = {
 export const createProTrialCheckout = async (): Promise<void> => {
   const { data: sessionData, error } = await supabase.auth.getSession();
 
-  if (error || !sessionData.session) {
+  if (error || !sessionData?.session?.access_token) {
     throw new Error('You must be logged in to subscribe');
   }
 
   const response = await supabase.functions.invoke('create-pro-trial-session', {
     body: {},
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
   });
 
   if (response.error) {
@@ -108,12 +117,15 @@ export const createProTrialCheckout = async (): Promise<void> => {
 export const createFoundingCheckout = async (): Promise<void> => {
   const { data: sessionData, error } = await supabase.auth.getSession();
 
-  if (error || !sessionData.session) {
+  if (error || !sessionData?.session?.access_token) {
     throw new Error('You must be logged in to purchase founding access');
   }
 
   const response = await supabase.functions.invoke('create-founding-session', {
     body: {},
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
   });
 
   if (response.error) {
