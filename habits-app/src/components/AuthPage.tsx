@@ -5,7 +5,7 @@ import { supabase } from '../utils/supabase';
 import { createProTrialCheckout, createFoundingCheckout } from '../utils/stripe';
 import { TermsModal } from './TermsModal';
 import { FoundingCelebration } from './FoundingCelebration';
-import { useDiamondSpots, claimFoundingSlot } from '../hooks/useDiamondSpots';
+import { useDiamondSpots } from '../hooks/useDiamondSpots';
 import { HABIT_COLORS } from '../types';
 
 export const AuthPage = () => {
@@ -22,11 +22,10 @@ export const AuthPage = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showFoundingCelebration, setShowFoundingCelebration] = useState(false);
-  const [, setIsFoundingMember] = useState(false);
   const navigate = useNavigate();
 
-  // Check if founding spots are available
-  const { spotsRemaining } = useDiamondSpots();
+  // Founding slots disabled - kept hook for future re-enablement
+  useDiamondSpots();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +84,7 @@ export const AuthPage = () => {
     requestAnimationFrame(animateProgress);
 
     try {
-      const { data: signUpData, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -98,20 +97,22 @@ export const AuthPage = () => {
       });
       if (error) throw error;
 
-      // Check if we can claim a founding spot
+      // Founding slots disabled for now - all users must go through paid checkout
+      // Will be re-enabled in future
+      // let claimedFoundingSpot = false;
+      // if (spotsRemaining > 0 && signUpData.user?.id) {
+      //   try {
+      //     const claimResult = await claimFoundingSlot(signUpData.user.id);
+      //     if (claimResult.success) {
+      //       claimedFoundingSpot = true;
+      //       setIsFoundingMember(true);
+      //     }
+      //   } catch (claimErr) {
+      //     // Silently fail - user still gets regular account
+      //     console.log('Could not claim founding spot:', claimErr);
+      //   }
+      // }
       let claimedFoundingSpot = false;
-      if (spotsRemaining > 0 && signUpData.user?.id) {
-        try {
-          const claimResult = await claimFoundingSlot(signUpData.user.id);
-          if (claimResult.success) {
-            claimedFoundingSpot = true;
-            setIsFoundingMember(true);
-          }
-        } catch (claimErr) {
-          // Silently fail - user still gets regular account
-          console.log('Could not claim founding spot:', claimErr);
-        }
-      }
 
       // Get the plan parameter from URL
       const planParam = searchParams.get('plan');

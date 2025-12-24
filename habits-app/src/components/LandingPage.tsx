@@ -7,7 +7,7 @@ import { TrialExpiredModal } from './TrialExpiredModal';
 export const LandingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { spotsRemaining, loading: spotsLoading, error: spotsError } = useDiamondSpots();
+  const { spotsRemaining } = useDiamondSpots();
   const [showTrialExpired, setShowTrialExpired] = useState(false);
 
   // Check for trial_expired or no_access query params
@@ -195,7 +195,6 @@ export const LandingPage = () => {
           {pricingPlans.map((plan, index) => {
             const isFounding = plan.tier === 'diamond';
             const isPro = plan.tier === 'pro';
-            const foundingAvailable = isFounding && spotsRemaining > 0;
             const hasTrialCopy = 'trialCopy' in plan && plan.trialCopy;
 
             return (
@@ -207,15 +206,41 @@ export const LandingPage = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="relative"
               >
+                {/* Blue glow animation for founding card */}
+                {isFounding && (
+                  <motion.div
+                    className="absolute inset-0 rounded-[24px] sm:rounded-[28px] pointer-events-none"
+                    animate={{
+                      boxShadow: [
+                        '0 0 20px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.1)',
+                        '0 0 40px rgba(6, 182, 212, 0.3), inset 0 0 30px rgba(6, 182, 212, 0.15)',
+                        '0 0 20px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.1)',
+                      ],
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+
                 <div
-                  className="relative p-6 sm:p-8 rounded-[24px] sm:rounded-[28px] h-full flex flex-col"
+                  className={`relative p-6 sm:p-8 rounded-[24px] sm:rounded-[28px] h-full flex flex-col ${isFounding ? 'pointer-events-none' : ''}`}
                   style={{
                     background: '#141414',
                     border: isPro
                       ? '1px solid rgba(255, 255, 255, 0.08)'
-                      : '1px solid rgba(255, 255, 255, 0.04)',
+                      : isFounding
+                        ? '1px solid rgba(6, 182, 212, 0.3)'
+                        : '1px solid rgba(255, 255, 255, 0.04)',
                   }}
                 >
+                  {/* Coming Soon badge for founding */}
+                  {isFounding && (
+                    <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+                      <div className="px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-cyan-400/20 border border-cyan-500/50 rounded-full">
+                        <span className="text-[11px] font-semibold tracking-wider text-cyan-400">COMING SOON</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Microtext + Plan Name */}
                   <div className="mb-6">
                     {'microtext' in plan && plan.microtext && (
@@ -250,18 +275,12 @@ export const LandingPage = () => {
                     {plan.description}
                   </p>
 
-                  {/* Founding slots - quiet scarcity, no urgency */}
-                  {isFounding && !spotsLoading && !spotsError && (
+                  {/* Founding coming soon - hide slots display */}
+                  {isFounding && (
                     <div className="mb-6">
-                      {spotsRemaining > 0 ? (
-                        <p className="text-[13px] text-[#6F6F6F]">
-                          {spotsRemaining} founding spot{spotsRemaining === 1 ? '' : 's'} remaining
-                        </p>
-                      ) : (
-                        <p className="text-[13px] text-[#4F4F4F]">
-                          Founding access is closed
-                        </p>
-                      )}
+                      <p className="text-[13px] text-[#6F6F6F]">
+                        A permanent home for people who build daily.
+                      </p>
                     </div>
                   )}
 
@@ -278,22 +297,23 @@ export const LandingPage = () => {
                   {/* CTA Button */}
                   <button
                     onClick={() => {
-                      if (isFounding && !foundingAvailable) return;
+                      if (isFounding) return; // Founding card always disabled
                       navigate(`/login?mode=signup&plan=${plan.tier}`);
                     }}
-                    disabled={isFounding && !foundingAvailable}
-                    className="w-full py-3.5 px-6 rounded-full text-[14px] font-medium transition-all duration-200 disabled:cursor-not-allowed"
+                    disabled={isFounding}
+                    className={`w-full py-3.5 px-6 rounded-full text-[14px] font-medium transition-all duration-200 ${isFounding ? 'cursor-not-allowed' : ''}`}
                     style={
                       isPro
                         ? {
                             background: '#F5F5F5',
                             color: '#0B0B0B',
                           }
-                        : isFounding && foundingAvailable
+                        : isFounding
                           ? {
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              color: '#A0A0A0',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              background: 'rgba(6, 182, 212, 0.1)',
+                              color: '#6F6F6F',
+                              border: '1px solid rgba(6, 182, 212, 0.25)',
+                              cursor: 'not-allowed',
                             }
                           : {
                               background: 'rgba(255, 255, 255, 0.04)',
@@ -301,7 +321,7 @@ export const LandingPage = () => {
                             }
                     }
                   >
-                    {plan.buttonText}
+                    {isFounding ? 'Coming Soon' : plan.buttonText}
                   </button>
                 </div>
               </motion.div>
