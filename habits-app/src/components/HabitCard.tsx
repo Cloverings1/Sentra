@@ -12,9 +12,11 @@ interface HabitCardProps {
   index: number;
   selectedDate: Date;
   onEdit?: (habit: Habit) => void;
+  onPaywallTrigger?: () => void;
+  hasAccess?: boolean;
 }
 
-export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps) => {
+export const HabitCard = ({ habit, index, selectedDate, onEdit, onPaywallTrigger, hasAccess = true }: HabitCardProps) => {
   const { isCompleted, toggleCompletion, completedDays } = useHabits();
   const completed = isCompleted(habit.id, selectedDate);
   const [isPending, setIsPending] = useState(false);
@@ -103,6 +105,12 @@ export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps
   };
 
   const handleClick = async () => {
+    // Check access before allowing interaction
+    if (!hasAccess) {
+      onPaywallTrigger?.();
+      return;
+    }
+
     if (isPending) return;
     setIsPending(true);
 

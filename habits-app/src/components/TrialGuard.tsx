@@ -1,61 +1,22 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useEntitlement } from '../contexts/EntitlementContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useEntitlement } from '../contexts/EntitlementContext';
 
 interface TrialGuardProps {
   children: React.ReactNode;
 }
 
 /**
- * TrialGuard protects the app from:
- * 1. Users with expired trials
- * 2. Users without any subscription access
- *
- * It redirects them to the landing page with appropriate query params.
+ * TrialGuard now allows users into the app regardless of subscription status.
+ * The paywall is shown when they try to interact (toggle habit, add habit, etc.)
+ * This provides a better UX - users can see their data before being asked to pay.
  */
 export const TrialGuard = ({ children }: TrialGuardProps) => {
   const { user } = useAuth();
-  const { hasAccess, isTrialing, trialState, isFounding, loading } = useEntitlement();
-  const navigate = useNavigate();
+  const { loading } = useEntitlement();
 
-  useEffect(() => {
-    // Skip if checkout is in progress (prevents race condition with Stripe redirect)
-    if (sessionStorage.getItem('checkout_in_progress') === 'true') {
-      return;
-    }
+  // Show nothing while loading auth/entitlement
+  if (loading || !user) return null;
 
-    // Wait for auth and subscription data to load
-    if (loading || !user) return;
-
-    // Founding members always have access
-    if (isFounding) return;
-
-    // Expired trial - redirect to pricing with modal
-    if (isTrialing && trialState?.isExpired) {
-      navigate('/?trial_expired=true', { replace: true });
-      return;
-    }
-
-    // No subscription access at all - redirect to pricing
-    // This catches: free users (plan='none'), canceled subscriptions, etc.
-    if (!hasAccess) {
-      navigate('/?no_access=true', { replace: true });
-      return;
-    }
-  }, [hasAccess, isTrialing, trialState, isFounding, loading, user, navigate]);
-
-  // Show nothing while checking (prevents flash of content)
-  if (loading) return null;
-
-  // Don't block if checkout is in progress (user is being redirected to Stripe)
-  if (sessionStorage.getItem('checkout_in_progress') === 'true') {
-    return <>{children}</>;
-  }
-
-  // Show nothing if no access (will redirect)
-  if (!hasAccess && !isFounding) return null;
-
-  // Render app
+  // Always render the app - paywall is triggered on interaction
   return <>{children}</>;
 };

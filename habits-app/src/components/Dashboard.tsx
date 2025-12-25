@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useEntitlement } from '../contexts/EntitlementContext';
 import { AddHabitModal } from './AddHabitModal';
 import { EditHabitModal } from './EditHabitModal';
 import { WeekView } from './WeekView';
@@ -23,6 +24,21 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
   const { isTrialing } = useSubscription();
+  const { hasAccess } = useEntitlement();
+
+  // Handler to trigger paywall when user without access tries to interact
+  const handlePaywallTrigger = () => {
+    setShowUpgradeModal(true);
+  };
+
+  // Handler for add habit - check access first
+  const handleAddHabitClick = () => {
+    if (!hasAccess) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setIsModalOpen(true);
+  };
 
   // Auto-redirect to calendar after 7 total completions (one-time)
   useEffect(() => {
@@ -148,7 +164,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
           {/* Add habit button - only show when user has habits (empty state has its own CTA) */}
           {habits.length > 0 && (
             <motion.button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleAddHabitClick}
               className="w-10 h-10 rounded-full flex items-center justify-center text-white"
               style={{ background: 'rgba(255, 255, 255, 0.1)' }}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -184,7 +200,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
           >
             {/* Single clickable affordance - icon + label as one component */}
             <motion.button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleAddHabitClick}
               className="flex flex-col items-center group"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.96 }}
@@ -249,13 +265,15 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                   index={index}
                   selectedDate={selectedDate}
                   onEdit={setEditingHabit}
+                  hasAccess={hasAccess}
+                  onPaywallTrigger={handlePaywallTrigger}
                 />
               ))}
             </div>
 
             {/* Add another habit button - full width */}
             <motion.button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleAddHabitClick}
               className="w-full mt-4 py-3 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2"
               style={{
                 background: 'rgba(255, 255, 255, 0.03)',
