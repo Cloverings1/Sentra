@@ -24,7 +24,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
   const { isTrialing } = useSubscription();
-  const { hasAccess } = useEntitlement();
+  const { hasAccess, plan, isTrialing: isTrialingEntitlement, trialState } = useEntitlement();
 
   // Handler to trigger paywall when user without access tries to interact
   const handlePaywallTrigger = () => {
@@ -93,13 +93,39 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       {/* Header with greeting, progress, and streak */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex-1">
-          <motion.h1
-            className="text-display"
+          <motion.div
+            className="flex items-center gap-3"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            Hey <span className="font-bold">{userName}!</span>
-          </motion.h1>
+            <h1 className="text-display">
+              Hey <span className="font-bold">{userName}!</span>
+            </h1>
+            {/* Plan badge */}
+            <span
+              className="text-[10px] uppercase tracking-[0.08em] font-semibold px-2 py-1 rounded-full"
+              style={{
+                background: plan === 'founding'
+                  ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))'
+                  : plan === 'pro'
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(255, 255, 255, 0.05)',
+                color: plan === 'founding'
+                  ? '#22d3ee'
+                  : plan === 'pro'
+                    ? 'rgba(255, 255, 255, 0.7)'
+                    : 'rgba(255, 255, 255, 0.4)',
+                border: plan === 'founding'
+                  ? '1px solid rgba(6, 182, 212, 0.25)'
+                  : '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              {plan === 'founding' ? 'Diamond' :
+               plan === 'pro' && isTrialingEntitlement ? `Trial${trialState?.daysRemaining ? ` · ${trialState.daysRemaining}d` : ''}` :
+               plan === 'pro' ? 'Pro' :
+               'Free'}
+            </span>
+          </motion.div>
 
           {/* Progress indicator */}
           {totalHabits > 0 && (
