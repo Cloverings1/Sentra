@@ -174,6 +174,23 @@ export const calculateGlobalStreak = (
 };
 
 /**
+ * Get streak for a specific habit - counts consecutive days of completion
+ */
+export const getHabitStreak = (
+  habitId: string,
+  completions: { habitId: string; date: string }[]
+): number => {
+  const habitCompletions = completions
+    .filter(c => c.habitId === habitId)
+    .map(c => c.date);
+
+  if (habitCompletions.length === 0) return 0;
+
+  const sortedDates = [...habitCompletions].sort((a, b) => b.localeCompare(a));
+  return calculateStreakFromDates(sortedDates);
+};
+
+/**
  * Count unique days with at least one completion in the current week (Mon-Sun)
  */
 export const getWeekCompletionCount = (

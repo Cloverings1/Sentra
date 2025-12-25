@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { AddHabitModal } from './AddHabitModal';
@@ -8,6 +8,7 @@ import { WeekView } from './WeekView';
 import { HabitCard } from './HabitCard';
 import { TrialBanner } from './TrialBanner';
 import { PaywallModal } from './PaywallModal';
+import { MicroConfetti } from './MicroConfetti';
 import { formatDate } from '../utils/dateUtils';
 import type { Habit } from '../types';
 
@@ -39,6 +40,37 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   ).length;
   const totalHabits = habits.length;
   const isToday = formatDate(selectedDate) === formatDate(new Date());
+
+  // Perfect Day state - all habits completed
+  const isPerfectDay = totalHabits > 0 && completedToday === totalHabits && isToday;
+  const prevCompletedRef = useRef(completedToday);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [hasShownConfetti, setHasShownConfetti] = useState(false);
+
+  // Trigger confetti when achieving Perfect Day
+  useEffect(() => {
+    // Only trigger when going from incomplete to complete
+    if (isPerfectDay && !hasShownConfetti && prevCompletedRef.current < totalHabits) {
+      setShowConfetti(true);
+      setHasShownConfetti(true);
+
+      // Haptic feedback for Perfect Day
+      if (navigator.vibrate) {
+        navigator.vibrate([50, 50, 100]);
+      }
+
+      // Hide confetti after animation
+      setTimeout(() => {
+        setShowConfetti(false);
+      }, 2000);
+    }
+    prevCompletedRef.current = completedToday;
+  }, [completedToday, totalHabits, isPerfectDay, hasShownConfetti]);
+
+  // Reset hasShownConfetti when day changes or habits change
+  useEffect(() => {
+    setHasShownConfetti(false);
+  }, [formatDate(selectedDate), habits.length]);
 
   return (
     <div className="main-content">
@@ -260,6 +292,63 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         onClose={() => setShowUpgradeModal(false)}
         trigger="habit_limit"
       />
+
+      {/* Micro-confetti celebration for Perfect Day */}
+      <MicroConfetti isActive={showConfetti} />
+
+      {/* Perfect Day overlay message */}
+      <AnimatePresence>
+        {isPerfectDay && (
+          <motion.div
+            className="fixed inset-x-0 bottom-24 flex justify-center pointer-events-none z-40"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+          >
+            <motion.div
+              className="px-6 py-3 rounded-2xl flex items-center gap-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              }}
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              transition={{
+                type: 'spring',
+                stiffness: 400,
+                damping: 25,
+                delay: 0.1,
+              }}
+            >
+              <motion.span
+                className="text-[20px]"
+                animate={{
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0],
+                }}
+                transition={{
+                  duration: 0.6,
+                  repeat: Infinity,
+                  repeatDelay: 2,
+                }}
+              >
+                ✨
+              </motion.span>
+              <div>
+                <p className="text-[15px] font-semibold" style={{ color: '#22c55e' }}>
+                  Perfect Day!
+                </p>
+                <p className="text-[12px]" style={{ color: 'rgba(34, 197, 94, 0.8)' }}>
+                  All habits complete. You're amazing.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

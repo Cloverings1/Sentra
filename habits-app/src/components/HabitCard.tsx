@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import type { Habit } from '../types';
 import { useHabits } from '../contexts/HabitsContext';
+import { getHabitStreak } from '../utils/dateUtils';
 
 const LONG_PRESS_DURATION = 1500; // 1.5 seconds
 const LONG_PRESS_VISUAL_DELAY = 150; // Only show progress bar after this threshold
@@ -14,9 +15,16 @@ interface HabitCardProps {
 }
 
 export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps) => {
-  const { isCompleted, toggleCompletion } = useHabits();
+  const { isCompleted, toggleCompletion, completedDays } = useHabits();
   const completed = isCompleted(habit.id, selectedDate);
   const [isPending, setIsPending] = useState(false);
+  const [showColorFlood, setShowColorFlood] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const cardControls = useAnimation();
+  const checkmarkControls = useAnimation();
+
+  // Calculate streak for this habit
+  const streak = getHabitStreak(habit.id, completedDays);
 
   // Long press state
   const [isLongPressing, setIsLongPressing] = useState(false);
@@ -98,8 +106,53 @@ export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps
     if (isPending) return;
     setIsPending(true);
 
+    const wasCompleted = completed;
+
     try {
       await toggleCompletion(habit.id, selectedDate);
+
+      // Only trigger celebration when COMPLETING (not uncompleting)
+      if (!wasCompleted) {
+        // Haptic feedback on completion
+        if (navigator.vibrate) {
+          navigator.vibrate(15);
+        }
+
+        // Trigger celebration animations
+        setJustCompleted(true);
+        setShowColorFlood(true);
+
+        // Satisfying bounce animation
+        cardControls.start({
+          scale: [1, 1.03, 0.98, 1],
+          transition: {
+            duration: 0.4,
+            times: [0, 0.2, 0.5, 1],
+            ease: [0.32, 0.72, 0, 1],
+          },
+        });
+
+        // Checkmark pop animation
+        checkmarkControls.start({
+          scale: [0.5, 1.4, 1],
+          opacity: [0, 1, 1],
+          transition: {
+            duration: 0.35,
+            times: [0, 0.5, 1],
+            ease: [0.32, 0.72, 0, 1],
+          },
+        });
+
+        // Clear color flood after animation
+        setTimeout(() => {
+          setShowColorFlood(false);
+        }, 400);
+
+        // Clear justCompleted state
+        setTimeout(() => {
+          setJustCompleted(false);
+        }, 600);
+      }
     } catch (error) {
       console.error('Failed to toggle habit:', error);
     } finally {
@@ -121,21 +174,40 @@ export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps
           : 'none',
       }}
       initial={{ opacity: 0, y: 8 }}
-      animate={{
-        opacity: isPending ? 0.6 : 1,
-        y: 0,
-        scale: isPending ? 0.98 : isLongPressing ? 0.97 : 1,
-      }}
-      transition={{
-        duration: 0.2,
-        delay: index * 0.03,
-        ease: [0.32, 0.72, 0, 1],
-      }}
+      animate={cardControls}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       onPointerCancel={handlePointerLeave}
     >
+      {/* Initial animation */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{
+          duration: 0.2,
+          delay: index * 0.03,
+          ease: [0.32, 0.72, 0, 1],
+        }}
+      />
+
+      {/* Color flood effect on completion */}
+      <AnimatePresence>
+        {showColorFlood && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(circle at center, ${habit.color}30 0%, transparent 70%)`,
+            }}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Long press progress bar - bottom edge */}
       <AnimatePresence>
         {isLongPressing && (
@@ -154,34 +226,103 @@ export const HabitCard = ({ habit, index, selectedDate, onEdit }: HabitCardProps
         )}
       </AnimatePresence>
 
-      {/* Habit name - the only text */}
-      <span
-        className="text-[16px] font-medium"
-        style={{
-          color: completed ? 'var(--text-muted)' : 'var(--text-primary)',
-          transition: 'color 0.2s ease',
-        }}
-      >
-        {habit.name}
-      </span>
+      {/* Left side: Habit name + streak */}
+      <div className="flex flex-col gap-0.5 relative z-10">
+        <span
+          className="text-[16px] font-medium"
+          style={{
+            color: completed ? 'var(--text-muted)' : 'var(--text-primary)',
+            transition: 'color 0.2s ease',
+          }}
+        >
+          {habit.name}
+        </span>
 
-      {/* Completion indicator - soft colored dot */}
-      <motion.div
-        className="w-3 h-3 rounded-full"
-        style={{
-          backgroundColor: completed ? habit.color : 'rgba(255, 255, 255, 0.1)',
-          boxShadow: completed ? `0 0 12px ${habit.color}60` : 'none',
-        }}
-        animate={{
-          scale: completed ? 1 : 0.8,
-          opacity: completed ? 1 : 0.4,
-        }}
-        transition={{
-          type: 'spring',
-          stiffness: 400,
-          damping: 25,
-        }}
-      />
+        {/* Streak indicator - only show if streak >= 2 */}
+        <AnimatePresence>
+          {streak >= 2 && (
+            <motion.span
+              className="text-[11px] font-medium"
+              style={{ color: habit.color }}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 0.8, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              {streak} day streak
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Right side: Completion indicator with checkmark */}
+      <div className="relative">
+        {/* Outer glow ring on completion */}
+        <AnimatePresence>
+          {justCompleted && (
+            <motion.div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: habit.color,
+                filter: 'blur(8px)',
+              }}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 0.6, scale: 2 }}
+              exit={{ opacity: 0, scale: 2.5 }}
+              transition={{ duration: 0.5 }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Completion dot/checkmark */}
+        <motion.div
+          className="w-5 h-5 rounded-full flex items-center justify-center relative z-10"
+          style={{
+            backgroundColor: completed ? habit.color : 'rgba(255, 255, 255, 0.1)',
+            boxShadow: completed ? `0 0 12px ${habit.color}60` : 'none',
+          }}
+          animate={
+            justCompleted
+              ? checkmarkControls
+              : {
+                  scale: completed ? 1 : 0.8,
+                  opacity: completed ? 1 : 0.4,
+                }
+          }
+          transition={{
+            type: 'spring',
+            stiffness: 400,
+            damping: 25,
+          }}
+        >
+          {/* Checkmark icon */}
+          <AnimatePresence>
+            {completed && (
+              <motion.svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 500,
+                  damping: 30,
+                  delay: justCompleted ? 0.1 : 0,
+                }}
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </motion.svg>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
