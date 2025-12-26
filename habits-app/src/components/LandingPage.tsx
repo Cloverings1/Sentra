@@ -60,7 +60,7 @@ export const LandingPage = () => {
     <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#E85D4F]/30 overflow-x-hidden">
       <div className="flex justify-center pt-6">
         <div className="px-3 py-1 rounded-full bg-[#F5F5F5]/5 border border-[rgba(255,255,255,0.08)] backdrop-blur-sm">
-          <span className="text-[11px] font-medium tracking-widest uppercase text-[#A0A0A0]">Private Beta</span>
+          <span className="text-[11px] font-medium tracking-widest uppercase text-[#A0A0A0]">Private Beta v1.2</span>
         </div>
       </div>
 
