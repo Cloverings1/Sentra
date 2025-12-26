@@ -58,7 +58,7 @@ export const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#E85D4F]/30 overflow-x-hidden">
-<div className="flex justify-center pt-6">
+      <div className="flex justify-center pt-6">
         <div className="px-3 py-1 rounded-full bg-[#F5F5F5]/5 border border-[rgba(255,255,255,0.08)] backdrop-blur-sm">
           <span className="text-[11px] font-medium tracking-widest uppercase text-[#A0A0A0]">Private Beta</span>
         </div>
@@ -114,28 +114,28 @@ export const LandingPage = () => {
           No streaks to protect. No guilt. Just progress.
         </motion.p>
         <motion.div
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           transition={{ duration: 0.8, delay: 0.2 }}
-           className="flex flex-col sm:flex-row items-center gap-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="flex flex-col sm:flex-row items-center gap-6"
         >
-            <button
-              onClick={() => navigate('/login?mode=signup&plan=pro')}
-              className="btn-pill-primary"
-            >
-              Start free trial
-            </button>
-            <div className="flex items-center gap-4 text-[13px] text-[#6F6F6F]">
-              <span>7 days free</span>
-              <span className="opacity-30">|</span>
-              <div className="flex items-center gap-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <span>Private</span>
-              </div>
+          <button
+            onClick={() => navigate('/login?mode=signup&plan=pro')}
+            className="btn-pill-primary"
+          >
+            Start free trial
+          </button>
+          <div className="flex items-center gap-4 text-[13px] text-[#6F6F6F]">
+            <span>7 days free</span>
+            <span className="opacity-30">|</span>
+            <div className="flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span>Private</span>
             </div>
+          </div>
         </motion.div>
       </section>
 
@@ -239,15 +239,15 @@ export const LandingPage = () => {
                     border: isPro
                       ? '1px solid rgba(255, 255, 255, 0.08)'
                       : isFounding
-                        ? '1px solid rgba(6, 182, 212, 0.3)'
+                        ? '1px solid rgba(255, 255, 255, 0.08)'  // Matched to Pro for minimal look
                         : '1px solid rgba(255, 255, 255, 0.04)',
                   }}
                 >
                   {/* Coming Soon badge for founding */}
                   {isFounding && (
                     <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-                      <div className="px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-cyan-400/20 border border-cyan-500/50 rounded-full">
-                        <span className="text-[11px] font-semibold tracking-wider text-cyan-400">COMING SOON</span>
+                      <div className="px-2 py-0.5 border border-[#4F4F4F] rounded-full">
+                        <span className="text-[10px] font-medium tracking-widest text-[#A0A0A0] uppercase">Coming Soon</span>
                       </div>
                     </div>
                   )}
@@ -259,18 +259,26 @@ export const LandingPage = () => {
                         {plan.microtext}
                       </p>
                     )}
-                    <h3 className="text-[13px] font-medium tracking-[0.05em] uppercase text-[#F5F5F5]">
+                    <h3 className={`text-[13px] font-medium tracking-[0.05em] uppercase ${isFounding ? 'text-[#F5F5F5]' : 'text-[#F5F5F5]'}`}>
                       {plan.name}
                     </h3>
                   </div>
 
-                  {/* Price */}
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-[36px] font-semibold text-[#F5F5F5]">
-                      {plan.price}
-                    </span>
-                    {plan.period && (
-                      <span className="text-[#6F6F6F] text-[14px]">{plan.period}</span>
+                  {/* Price / Title Area */}
+                  <div className="flex items-baseline gap-1 mb-4 h-[54px] sm:h-[60px] flex-col justify-center">
+                    {isFounding ? (
+                      <span className="text-[20px] sm:text-[22px] font-light tracking-[0.15em] text-[#E5E5E5] uppercase">
+                        Lifetime Access
+                      </span>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[36px] font-semibold text-[#F5F5F5]">
+                          {plan.price}
+                        </span>
+                        {plan.period && (
+                          <span className="text-[#6F6F6F] text-[14px]">{plan.period}</span>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -299,7 +307,7 @@ export const LandingPage = () => {
                   <ul className="space-y-3 mb-8 flex-grow">
                     {plan.features.map(feature => (
                       <li key={feature} className="flex items-center text-[14px] text-[#A0A0A0]">
-                        <div className="w-1 h-1 rounded-full bg-[#6F6F6F] mr-3" />
+                        <div className={`w-1 h-1 rounded-full mr-3 ${isFounding ? 'bg-[#F5F5F5]' : 'bg-[#6F6F6F]'}`} />
                         {feature}
                       </li>
                     ))}
@@ -316,20 +324,20 @@ export const LandingPage = () => {
                     style={
                       isPro
                         ? {
-                            background: '#F5F5F5',
-                            color: '#0B0B0B',
-                          }
+                          background: '#F5F5F5',
+                          color: '#0B0B0B',
+                        }
                         : isFounding
                           ? {
-                              background: 'rgba(6, 182, 212, 0.1)',
-                              color: '#6F6F6F',
-                              border: '1px solid rgba(6, 182, 212, 0.25)',
-                              cursor: 'not-allowed',
-                            }
+                            background: 'transparent',
+                            color: '#4F4F4F',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            cursor: 'not-allowed',
+                          }
                           : {
-                              background: 'rgba(255, 255, 255, 0.04)',
-                              color: '#4F4F4F',
-                            }
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            color: '#4F4F4F',
+                          }
                     }
                   >
                     {isFounding ? 'Coming Soon' : plan.buttonText}
