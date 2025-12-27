@@ -12,6 +12,19 @@ import {
   ChevronDown,
   User,
   Mail,
+  AlertTriangle,
+  Flame,
+  Laptop,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Watch,
+  Printer,
+  HardDrive,
+  Wifi,
+  AppWindow,
+  HelpCircle,
+  Filter,
 } from 'lucide-react';
 
 interface Ticket {
@@ -22,6 +35,8 @@ interface Ticket {
   title: string;
   description: string;
   status: string;
+  priority: string | null;
+  product: string | null;
   tier: string | null;
   price: number | null;
   platform: string | null;
@@ -47,6 +62,26 @@ const TIER_CONFIG: Record<string, { label: string; price: number; color: string 
   complex: { label: 'Complex Fix', price: 19900, color: '#ef4444' },
 };
 
+const PRIORITY_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  low: { label: 'Low', color: '#6b7280', icon: Clock },
+  medium: { label: 'Medium', color: '#3b82f6', icon: AlertCircle },
+  high: { label: 'High', color: '#f59e0b', icon: AlertTriangle },
+  urgent: { label: 'Urgent', color: '#ef4444', icon: Flame },
+};
+
+const PRODUCT_CONFIG: Record<string, { label: string; icon: typeof Laptop }> = {
+  macbook: { label: 'MacBook', icon: Laptop },
+  imac: { label: 'iMac / Mac', icon: Monitor },
+  iphone: { label: 'iPhone', icon: Smartphone },
+  ipad: { label: 'iPad', icon: Tablet },
+  apple_watch: { label: 'Apple Watch', icon: Watch },
+  printer: { label: 'Printer', icon: Printer },
+  nas_storage: { label: 'NAS / Storage', icon: HardDrive },
+  network: { label: 'Network / WiFi', icon: Wifi },
+  software: { label: 'Software / Apps', icon: AppWindow },
+  other: { label: 'Other', icon: HelpCircle },
+};
+
 const STATUS_OPTIONS = [
   { value: 'pending_review', label: 'Under Review' },
   { value: 'quote_sent', label: 'Quote Sent' },
@@ -56,11 +91,13 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+type FilterType = 'all' | 'active' | 'urgent' | 'completed';
+
 export const AdminTicketsView = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
+  const [filter, setFilter] = useState<FilterType>('active');
 
   useEffect(() => {
     fetchTickets();
@@ -100,20 +137,33 @@ export const AdminTicketsView = () => {
     if (filter === 'active') {
       return !['completed', 'cancelled'].includes(ticket.status);
     }
+    if (filter === 'urgent') {
+      return ticket.priority === 'urgent' || ticket.priority === 'high';
+    }
     if (filter === 'completed') {
       return ['completed', 'cancelled'].includes(ticket.status);
     }
     return true;
   });
 
+  // Sort by priority (urgent first) then by date
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+    const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
+    const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 2;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   const ticketCounts = {
     all: tickets.length,
     active: tickets.filter((t) => !['completed', 'cancelled'].includes(t.status)).length,
+    urgent: tickets.filter((t) => t.priority === 'urgent' || t.priority === 'high').length,
     completed: tickets.filter((t) => ['completed', 'cancelled'].includes(t.status)).length,
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5]">
+    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] pb-32">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-[28px] font-semibold tracking-tight mb-2">
@@ -125,19 +175,31 @@ export const AdminTicketsView = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        {(['active', 'all', 'completed'] as const).map((f) => (
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {([
+          { key: 'active', label: 'Active' },
+          { key: 'urgent', label: 'Urgent', color: '#ef4444' },
+          { key: 'all', label: 'All' },
+          { key: 'completed', label: 'Completed' },
+        ] as { key: FilterType; label: string; color?: string }[]).map((f) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className="px-4 py-2 rounded-xl text-[13px] font-medium transition-all"
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium transition-all whitespace-nowrap"
             style={{
-              background: filter === f ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-              color: filter === f ? '#3b82f6' : '#6F6F6F',
-              border: `1px solid ${filter === f ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
+              background: filter === f.key
+                ? f.color ? `${f.color}20` : 'rgba(59, 130, 246, 0.15)'
+                : 'rgba(255, 255, 255, 0.04)',
+              color: filter === f.key
+                ? f.color || '#3b82f6'
+                : '#6F6F6F',
+              border: `1px solid ${filter === f.key
+                ? f.color ? `${f.color}40` : 'rgba(59, 130, 246, 0.3)'
+                : 'rgba(255, 255, 255, 0.06)'}`,
             }}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)} ({ticketCounts[f]})
+            {f.key === 'urgent' && <Flame size={14} />}
+            {f.label} ({ticketCounts[f.key]})
           </button>
         ))}
       </div>
@@ -146,7 +208,7 @@ export const AdminTicketsView = () => {
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : filteredTickets.length === 0 ? (
+      ) : sortedTickets.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -156,16 +218,16 @@ export const AdminTicketsView = () => {
             className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center"
             style={{ background: 'rgba(255, 255, 255, 0.04)' }}
           >
-            <CheckCircle size={28} className="text-[#6F6F6F]" />
+            <Filter size={28} className="text-[#6F6F6F]" />
           </div>
           <h3 className="text-[18px] font-medium mb-2">No tickets found</h3>
           <p className="text-[14px] text-[#6F6F6F]">
-            {filter === 'active' ? 'All caught up!' : 'No tickets yet.'}
+            {filter === 'active' ? 'All caught up!' : filter === 'urgent' ? 'No urgent tickets!' : 'No tickets yet.'}
           </p>
         </motion.div>
       ) : (
         <div className="space-y-3">
-          {filteredTickets.map((ticket, index) => (
+          {sortedTickets.map((ticket, index) => (
             <AdminTicketCard
               key={ticket.id}
               ticket={ticket}
@@ -201,7 +263,13 @@ const AdminTicketCard = ({
 }) => {
   const status = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.pending_review;
   const tier = ticket.tier ? TIER_CONFIG[ticket.tier] : null;
+  const priority = ticket.priority ? PRIORITY_CONFIG[ticket.priority] : null;
+  const product = ticket.product ? PRODUCT_CONFIG[ticket.product] : null;
   const StatusIcon = status.icon;
+  const ProductIcon = product?.icon || HelpCircle;
+
+  // Highlight urgent/high priority
+  const isHighPriority = ticket.priority === 'urgent' || ticket.priority === 'high';
 
   return (
     <motion.button
@@ -211,18 +279,50 @@ const AdminTicketCard = ({
       onClick={onClick}
       className="w-full p-5 rounded-2xl text-left transition-all hover:bg-white/[0.02]"
       style={{
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: isHighPriority
+          ? `linear-gradient(135deg, ${priority?.color}08, transparent)`
+          : 'rgba(255, 255, 255, 0.03)',
+        border: `1px solid ${isHighPriority ? `${priority?.color}30` : 'rgba(255, 255, 255, 0.06)'}`,
       }}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          {/* User info */}
+          <div className="flex items-center gap-2 mb-2">
             <User size={12} className="text-[#6F6F6F]" />
             <span className="text-[12px] text-[#6F6F6F]">{ticket.user_name}</span>
             <span className="text-[10px] text-[#4F4F4F]">•</span>
             <span className="text-[12px] text-[#4F4F4F]">{ticket.user_email}</span>
           </div>
+
+          {/* Product & Priority badges */}
+          <div className="flex items-center gap-2 mb-2">
+            {product && (
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px]"
+                style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+              >
+                <ProductIcon size={12} className="text-[#6F6F6F]" />
+                <span className="text-[#A0A0A0]">{product.label}</span>
+              </div>
+            )}
+            {priority && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium"
+                style={{
+                  background: `${priority.color}20`,
+                  color: priority.color,
+                }}
+              >
+                {(() => {
+                  const PriorityIcon = priority.icon;
+                  return <PriorityIcon size={10} />;
+                })()}
+                <span>{priority.label}</span>
+              </div>
+            )}
+          </div>
+
           <h3 className="text-[15px] font-medium text-[#F5F5F5] mb-1 truncate">
             {ticket.title}
           </h3>
@@ -289,6 +389,9 @@ const AdminTicketModal = ({
 
   const currentStatus = STATUS_CONFIG[status] || STATUS_CONFIG.pending_review;
   const currentTier = tier ? TIER_CONFIG[tier] : null;
+  const priority = ticket.priority ? PRIORITY_CONFIG[ticket.priority] : null;
+  const product = ticket.product ? PRODUCT_CONFIG[ticket.product] : null;
+  const ProductIcon = product?.icon || HelpCircle;
 
   const handleSave = async () => {
     setSaving(true);
@@ -358,6 +461,35 @@ const AdminTicketModal = ({
           >
             <X size={18} />
           </button>
+        </div>
+
+        {/* Product & Priority info */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {product && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{ background: 'rgba(255, 255, 255, 0.04)' }}
+            >
+              <ProductIcon size={16} className="text-[#6F6F6F]" />
+              <span className="text-[13px] text-[#A0A0A0]">{product.label}</span>
+            </div>
+          )}
+          {priority && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{
+                background: `${priority.color}15`,
+              }}
+            >
+              {(() => {
+                const PriorityIcon = priority.icon;
+                return <PriorityIcon size={16} style={{ color: priority.color }} />;
+              })()}
+              <span className="text-[13px]" style={{ color: priority.color }}>
+                {priority.label} Priority
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Description */}

@@ -3,13 +3,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabase';
 import { TicketModal } from './TicketModal';
-import { Plus, Clock, CheckCircle, AlertCircle, DollarSign, Wrench, X } from 'lucide-react';
+import {
+  Plus,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  DollarSign,
+  Wrench,
+  X,
+  AlertTriangle,
+  Flame,
+  Laptop,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Watch,
+  Printer,
+  HardDrive,
+  Wifi,
+  AppWindow,
+  HelpCircle,
+} from 'lucide-react';
 
 interface Ticket {
   id: string;
   title: string;
   description: string;
   status: string;
+  priority: string | null;
+  product: string | null;
   tier: string | null;
   price: number | null;
   created_at: string;
@@ -31,6 +53,26 @@ const TIER_CONFIG: Record<string, { label: string; price: string; color: string 
   quick: { label: 'Quick Fix', price: '$49', color: '#22c55e' },
   standard: { label: 'Standard Fix', price: '$99', color: '#3b82f6' },
   complex: { label: 'Complex Fix', price: '$199', color: '#ef4444' },
+};
+
+const PRIORITY_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  low: { label: 'Low', color: '#6b7280', icon: Clock },
+  medium: { label: 'Medium', color: '#3b82f6', icon: AlertCircle },
+  high: { label: 'High', color: '#f59e0b', icon: AlertTriangle },
+  urgent: { label: 'Urgent', color: '#ef4444', icon: Flame },
+};
+
+const PRODUCT_CONFIG: Record<string, { label: string; icon: typeof Laptop }> = {
+  macbook: { label: 'MacBook', icon: Laptop },
+  imac: { label: 'iMac / Mac', icon: Monitor },
+  iphone: { label: 'iPhone', icon: Smartphone },
+  ipad: { label: 'iPad', icon: Tablet },
+  apple_watch: { label: 'Apple Watch', icon: Watch },
+  printer: { label: 'Printer', icon: Printer },
+  nas_storage: { label: 'NAS / Storage', icon: HardDrive },
+  network: { label: 'Network / WiFi', icon: Wifi },
+  software: { label: 'Software / Apps', icon: AppWindow },
+  other: { label: 'Other', icon: HelpCircle },
 };
 
 export const Dashboard = () => {
@@ -67,7 +109,7 @@ export const Dashboard = () => {
   const completedTickets = tickets.filter(t => ['completed', 'cancelled'].includes(t.status));
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5]">
+    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] pb-32">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-[28px] font-semibold tracking-tight mb-2">
@@ -196,7 +238,10 @@ const TicketCard = ({
 }) => {
   const status = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.pending_review;
   const tier = ticket.tier ? TIER_CONFIG[ticket.tier] : null;
+  const priority = ticket.priority ? PRIORITY_CONFIG[ticket.priority] : null;
+  const product = ticket.product ? PRODUCT_CONFIG[ticket.product] : null;
   const StatusIcon = status.icon;
+  const ProductIcon = product?.icon || HelpCircle;
 
   return (
     <motion.button
@@ -212,6 +257,34 @@ const TicketCard = ({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
+          {/* Product & Priority badges */}
+          <div className="flex items-center gap-2 mb-2">
+            {product && (
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px]"
+                style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+              >
+                <ProductIcon size={12} className="text-[#6F6F6F]" />
+                <span className="text-[#A0A0A0]">{product.label}</span>
+              </div>
+            )}
+            {priority && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px]"
+                style={{
+                  background: `${priority.color}15`,
+                  color: priority.color,
+                }}
+              >
+                {(() => {
+                  const PriorityIcon = priority.icon;
+                  return <PriorityIcon size={10} />;
+                })()}
+                <span>{priority.label}</span>
+              </div>
+            )}
+          </div>
+
           <h3 className="text-[15px] font-medium text-[#F5F5F5] mb-1 truncate">
             {ticket.title}
           </h3>
@@ -265,7 +338,10 @@ const TicketDetailModal = ({
 }) => {
   const status = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.pending_review;
   const tier = ticket.tier ? TIER_CONFIG[ticket.tier] : null;
+  const priority = ticket.priority ? PRIORITY_CONFIG[ticket.priority] : null;
+  const product = ticket.product ? PRODUCT_CONFIG[ticket.product] : null;
   const StatusIcon = status.icon;
+  const ProductIcon = product?.icon || HelpCircle;
 
   return (
     <>
@@ -290,9 +366,11 @@ const TicketDetailModal = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <div
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
                 style={{
@@ -303,9 +381,24 @@ const TicketDetailModal = ({
                 <StatusIcon size={12} />
                 {status.label}
               </div>
+              {priority && (
+                <div
+                  className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium"
+                  style={{
+                    background: `${priority.color}15`,
+                    color: priority.color,
+                  }}
+                >
+                  {(() => {
+                    const PriorityIcon = priority.icon;
+                    return <PriorityIcon size={12} />;
+                  })()}
+                  {priority.label}
+                </div>
+              )}
               {tier && (
                 <div
-                  className="text-[11px] font-medium px-2 py-0.5 rounded"
+                  className="text-[11px] font-medium px-2 py-1 rounded-full"
                   style={{
                     background: `${tier.color}15`,
                     color: tier.color,
@@ -327,6 +420,18 @@ const TicketDetailModal = ({
           </button>
         </div>
 
+        {/* Product */}
+        {product && (
+          <div
+            className="flex items-center gap-3 p-4 rounded-xl mb-6"
+            style={{ background: 'rgba(255, 255, 255, 0.03)' }}
+          >
+            <ProductIcon size={20} className="text-[#6F6F6F]" />
+            <span className="text-[14px] text-[#A0A0A0]">{product.label}</span>
+          </div>
+        )}
+
+        {/* Description */}
         <div className="mb-6">
           <h3 className="text-[12px] font-medium text-[#6F6F6F] uppercase tracking-wide mb-2">
             Description
@@ -336,6 +441,7 @@ const TicketDetailModal = ({
           </p>
         </div>
 
+        {/* Price if set */}
         {tier && ticket.price && (
           <div
             className="p-4 rounded-xl mb-6"
@@ -353,6 +459,7 @@ const TicketDetailModal = ({
           </div>
         )}
 
+        {/* Admin Notes */}
         {ticket.admin_notes && (
           <div className="mb-6">
             <h3 className="text-[12px] font-medium text-[#6F6F6F] uppercase tracking-wide mb-2">
@@ -364,6 +471,7 @@ const TicketDetailModal = ({
           </div>
         )}
 
+        {/* Resolution Notes */}
         {ticket.resolution_notes && (
           <div className="mb-6">
             <h3 className="text-[12px] font-medium text-[#22c55e] uppercase tracking-wide mb-2">
@@ -375,6 +483,7 @@ const TicketDetailModal = ({
           </div>
         )}
 
+        {/* Timestamps */}
         <div className="pt-4 border-t border-[#1F1F1F] text-[12px] text-[#4F4F4F]">
           <p>Submitted: {new Date(ticket.created_at).toLocaleString()}</p>
           {ticket.updated_at !== ticket.created_at && (
