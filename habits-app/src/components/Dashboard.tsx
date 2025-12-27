@@ -11,7 +11,6 @@ import { TrialBanner } from './TrialBanner';
 import { PaywallModal } from './PaywallModal';
 import { MicroConfetti } from './MicroConfetti';
 import { GlobalConsistency } from './Analytics/GlobalConsistency';
-import { DailyVerse } from './DailyVerse';
 import { formatDate } from '../utils/dateUtils';
 import type { Habit } from '../types';
 
@@ -26,7 +25,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
   const { hasAccess, plan, isTrialing, trialState, isBeta } = useEntitlement();
-  const { user } = useAuth();
+  useAuth();
 
   // Handler to trigger paywall when user without access tries to interact
   const handlePaywallTrigger = () => {
@@ -182,12 +181,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
           )}
         </div>
 
-        {/* Daily Verse - fill space */}
-        <div className="flex-1 h-full min-w-0">
-          <DailyVerse userSeed={user?.id ?? user?.email ?? 'global'} minimal />
-        </div>
-
-        <div className="shrink-0 flex items-center gap-3">
+        <div className="shrink-0 flex items-center gap-3 ml-auto">
           {/* Calendar shortcut - 1 tap access */}
           {completedDays.length > 0 && onNavigate && (
             <motion.button
