@@ -165,7 +165,7 @@ export const InvitePage = () => {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 backdrop-blur-sm mb-8"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
-            <span className="text-[11px] font-medium tracking-widest uppercase text-[#A78BFA]">Private Invite</span>
+            <span className="text-[11px] font-medium tracking-widest uppercase text-[#A78BFA]">Private Beta v1.5</span>
           </motion.div>
 
           <h1 className="text-[32px] sm:text-[40px] font-semibold tracking-tight leading-[1.1] mb-6">
@@ -186,7 +186,7 @@ export const InvitePage = () => {
             </button>
             
             <p className="text-[13px] text-[#6F6F6F]">
-              Limited spots available for v1.3
+              Limited spots available for v1.5
             </p>
           </div>
 
