@@ -6,6 +6,7 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { EntitlementProvider } from './contexts/EntitlementContext';
 import { HabitsProvider } from './contexts/HabitsContext';
 import { useAuth } from './contexts/AuthContext';
+import { useEntitlement } from './contexts/EntitlementContext';
 import { Navigation } from './components/Navigation';
 import { Dashboard } from './components/Dashboard';
 import { Calendar } from './components/Calendar';
@@ -22,6 +23,7 @@ import { FeedbackModal } from './components/FeedbackModal';
 import { TrialGuard } from './components/TrialGuard';
 import { MaintenancePage } from './components/MaintenancePage';
 import { StatusPage } from './components/StatusPage';
+import { BetaLoadingScreen } from './components/BetaLoadingScreen';
 import { MessageCircle } from 'lucide-react';
 import type { ViewType } from './types';
 
@@ -53,7 +55,9 @@ import { HabitDetail } from './components/Analytics/HabitDetail';
 const AppLayout = () => {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showBetaLoading, setShowBetaLoading] = useState(false);
   const { user, loading } = useAuth();
+  const { isBeta, loading: entitlementLoading } = useEntitlement();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,8 +66,29 @@ const AppLayout = () => {
     }
   }, [user, loading, navigate]);
 
-  if (loading) return null;
+  // Check if beta user needs to see loading screen
+  useEffect(() => {
+    if (loading || entitlementLoading || !user) return;
+    
+    if (isBeta) {
+      const hasSeenLoading = localStorage.getItem('beta_loading_seen') === 'true';
+      if (!hasSeenLoading) {
+        setShowBetaLoading(true);
+      }
+    }
+  }, [isBeta, loading, entitlementLoading, user]);
+
+  const handleBetaLoadingComplete = () => {
+    setShowBetaLoading(false);
+  };
+
+  if (loading || entitlementLoading) return null;
   if (!user) return null;
+
+  // Show beta loading screen if needed
+  if (showBetaLoading) {
+    return <BetaLoadingScreen isOpen={showBetaLoading} onComplete={handleBetaLoadingComplete} />;
+  }
 
   const renderView = () => {
     switch (currentView) {

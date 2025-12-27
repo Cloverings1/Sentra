@@ -25,7 +25,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
   const { isTrialing } = useSubscription();
-  const { hasAccess, plan, isTrialing: isTrialingEntitlement, trialState } = useEntitlement();
+  const { hasAccess, plan, isTrialing: isTrialingEntitlement, trialState, isBeta } = useEntitlement();
 
   // Handler to trigger paywall when user without access tries to interact
   const handlePaywallTrigger = () => {
@@ -108,22 +108,29 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
               style={{
                 background: plan === 'founding'
                   ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))'
-                  : plan === 'pro'
-                    ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(255, 255, 255, 0.05)',
+                  : isBeta
+                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))'
+                    : plan === 'pro'
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(255, 255, 255, 0.05)',
                 color: plan === 'founding'
                   ? '#22d3ee'
-                  : plan === 'pro'
-                    ? 'rgba(255, 255, 255, 0.7)'
-                    : 'rgba(255, 255, 255, 0.4)',
+                  : isBeta
+                    ? '#22d3ee'
+                    : plan === 'pro'
+                      ? 'rgba(255, 255, 255, 0.7)'
+                      : 'rgba(255, 255, 255, 0.4)',
                 border: plan === 'founding'
                   ? '1px solid rgba(6, 182, 212, 0.25)'
-                  : '1px solid rgba(255, 255, 255, 0.08)',
+                  : isBeta
+                    ? '1px solid rgba(6, 182, 212, 0.25)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
               {plan === 'founding' ? 'Diamond' :
                plan === 'pro' && isTrialingEntitlement ? `Trial${trialState?.daysRemaining ? ` · ${trialState.daysRemaining}d` : ''}` :
                plan === 'pro' ? 'Pro' :
+               isBeta ? 'Beta' :
                'Free'}
             </span>
           </motion.div>
