@@ -51,7 +51,7 @@ export const LandingPage = () => {
         'Sync across devices',
         'Private by default'
       ],
-      buttonText: 'Start free trial',
+      buttonText: 'Coming soon',
       tier: 'pro' as const,
       disabled: true
     },
@@ -77,7 +77,7 @@ export const LandingPage = () => {
     <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#E85D4F]/30 overflow-x-hidden">
       <div className="flex justify-center pt-6">
         <div className="px-3 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 backdrop-blur-sm">
-          <span className="text-[11px] font-medium tracking-widest uppercase text-[#A78BFA]">Private Beta v1.5</span>
+          <span className="text-[11px] font-medium tracking-widest uppercase text-[#A78BFA]">Private Beta v2.0</span>
         </div>
       </div>
 
@@ -137,13 +137,13 @@ export const LandingPage = () => {
           className="flex flex-col sm:flex-row items-center gap-6"
         >
           <button
-            onClick={() => navigate('/login?mode=signup&plan=pro')}
+            onClick={() => navigate('/login?mode=signup&plan=beta')}
             className="btn-pill-primary"
           >
-            Start free trial
+            Join beta
           </button>
           <div className="flex items-center gap-4 text-[13px] text-[#6F6F6F]">
-            <span>7 days free</span>
+            <span>Full access</span>
             <span className="opacity-30">|</span>
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -384,10 +384,10 @@ export const LandingPage = () => {
             You can always change later.
           </p>
           <button
-            onClick={() => navigate('/login?mode=signup&plan=pro')}
+            onClick={() => navigate('/login?mode=signup&plan=beta')}
             className="btn-pill-primary"
           >
-            Start free trial
+            Join beta
           </button>
         </motion.div>
       </section>
@@ -413,7 +413,7 @@ export const LandingPage = () => {
       </footer>
 
       {/* Trial Expired Modal */}
-      <TrialExpiredModal isOpen={showTrialExpired} />
+      <TrialExpiredModal isOpen={showTrialExpired} onClose={() => setShowTrialExpired(false)} />
     </div>
   );
 };

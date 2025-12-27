@@ -102,6 +102,13 @@ habits-app/
 | **Pro** | $9/month (7-day free trial) | Unlimited habits, cloud sync, PDF reports |
 | **Founders Edition** | $149 (Lifetime) | All Pro features forever, founding member exclusive |
 
+### Beta Mode (Current)
+
+For the current beta rollout, **Stripe/billing is disabled by default** (`VITE_BILLING_ENABLED=false`).
+
+- Access is granted via `user.user_metadata.beta_access === true` (primary), or via an entitlement row that represents “free pro” access (secondary).
+- Upgrade/manage subscription surfaces should behave as **“Notify me / Coming soon”** until billing is enabled.
+
 ### Founding Member System
 
 Limited slots (currently 5) for lifetime Founders Edition access:
@@ -156,7 +163,7 @@ user_feedback (
   id UUID PRIMARY KEY,
   user_id UUID,
   user_email TEXT,
-  type TEXT, -- 'feedback' | 'bug'
+  type TEXT, -- 'feedback' | 'bug' | 'feature'
   priority TEXT, -- 'fyi' | 'minor' | 'important' | 'critical'
   title TEXT,
   message TEXT,
@@ -177,16 +184,13 @@ broken_streaks (
 
 -- User entitlements (current subscription system)
 user_entitlements (
-  id UUID PRIMARY KEY REFERENCES auth.users,
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id),
   plan TEXT DEFAULT 'none',        -- 'none' | 'pro' | 'founding'
-  status TEXT DEFAULT 'none',      -- 'none' | 'trialing' | 'active' | 'canceled' | 'past_due'
-  stripe_customer_id TEXT,
+  status TEXT DEFAULT 'none',      -- 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
   stripe_subscription_id TEXT,
-  current_period_start TIMESTAMPTZ,
-  current_period_end TIMESTAMPTZ,
-  trial_start TIMESTAMPTZ,
-  trial_end TIMESTAMPTZ,
-  cancel_at_period_end BOOLEAN DEFAULT false
+  current_period_ends_at TIMESTAMPTZ,
+  trial_ends_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
 )
 ```
 
@@ -242,8 +246,8 @@ if (!hasAccess) {
 ### Habit Limit (Free Tier)
 
 ```typescript
-const { habitLimitReached } = useHabits();
-// Returns true if !hasPremiumAccess && habits.length >= 3
+// Enforce the free-tier habit limit in UI components.
+// There is no `habitLimitReached` helper in `HabitsContext` currently.
 ```
 
 ### Optimistic Updates
@@ -257,7 +261,10 @@ await toggleCompletion(habitId, date);
 ### Trial Checkout Flow
 
 ```typescript
-// In AuthPage.tsx after signup with ?plan=pro
+// Note: Checkout is gated behind `VITE_BILLING_ENABLED=true`.
+// During beta (billing disabled), pro/founding plans are treated as beta to avoid Stripe flows.
+
+// When billing is enabled:
 sessionStorage.setItem('checkout_in_progress', 'true');  // Prevents TrialGuard redirect
 await createProTrialCheckout();  // Redirects to Stripe
 
@@ -286,6 +293,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
 VITE_STRIPE_MONTHLY_PRICE_ID=price_...
 VITE_STRIPE_ANNUAL_PRICE_ID=price_...
+VITE_BILLING_ENABLED=false
 
 # Edge Functions (in Supabase dashboard)
 STRIPE_SECRET_KEY=sk_live_...
@@ -319,7 +327,7 @@ Epic celebration modal with:
 Shows when free user hits limits:
 - Feature comparison table
 - Monthly/annual pricing toggle
-- Redirects to Stripe checkout
+- In beta, CTAs are “Notify me / Coming soon” (no Stripe redirects)
 
 ## Stripe Integration
 

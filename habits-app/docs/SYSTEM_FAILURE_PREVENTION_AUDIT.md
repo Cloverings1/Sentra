@@ -6,6 +6,10 @@
 **Model**: Claude Opus 4.5
 **Codebase**: habits-app @ commit 2908cc7
 
+**Update (2025-12-27)**: Webhook idempotency has been further hardened:
+- `processed_webhook_events` now tracks `status` (`processing` | `succeeded` | `failed`).
+- Events are marked `succeeded/failed` **after** handling, so retries are not permanently blocked.
+
 ---
 
 # 1. FOUNDER-LEVEL EXECUTIVE SUMMARY

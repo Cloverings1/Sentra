@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useSubscription } from '../contexts/SubscriptionContext';
+import { useEntitlement } from '../contexts/EntitlementContext';
 import { Clock, Sparkles } from 'lucide-react';
 
 interface TrialBannerProps {
@@ -7,7 +7,7 @@ interface TrialBannerProps {
 }
 
 export const TrialBanner = ({ onUpgradeClick }: TrialBannerProps) => {
-  const { isTrialing, trialState } = useSubscription();
+  const { isTrialing, trialState } = useEntitlement();
 
   // Only show for active (non-expired) trials
   if (!isTrialing || !trialState || trialState.isExpired) {

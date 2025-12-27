@@ -113,7 +113,17 @@ export const EntitlementProvider = ({ children }: { children: ReactNode }) => {
   const status: EntitlementStatus = entitlement?.status || 'none';
   const isPro = plan === 'pro';
   const isFounding = plan === 'founding';
-  const isBeta = user?.user_metadata?.beta_access === true;
+  // Beta access can come from either:
+  // - user metadata flag (primary path)
+  // - entitlement row heuristic (secondary path for ops/admin granting access without Stripe)
+  const betaFromMetadata = user?.user_metadata?.beta_access === true;
+  const betaFromEntitlements =
+    entitlement?.plan === 'pro' &&
+    entitlement?.status === 'active' &&
+    !entitlement?.stripe_subscription_id &&
+    !entitlement?.trial_ends_at &&
+    !entitlement?.current_period_ends_at;
+  const isBeta = betaFromMetadata || betaFromEntitlements;
   const isTrialing = status === 'trialing';
 
   // Calculate trial state for Pro users
@@ -151,8 +161,8 @@ export const EntitlementProvider = ({ children }: { children: ReactNode }) => {
   // - Pro user with active status within billing period
   // - Pro user trialing and trial not expired
   const hasAccess = useMemo(() => {
-    // Check for beta access in user metadata
-    if (user?.user_metadata?.beta_access === true) {
+    // Beta access
+    if (isBeta) {
       return true;
     }
 
@@ -172,7 +182,7 @@ export const EntitlementProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return false;
-  }, [user, isFounding, isPro, status, isTrialing, trialState, entitlement?.current_period_ends_at]);
+  }, [isBeta, isFounding, isPro, status, isTrialing, trialState, entitlement?.current_period_ends_at]);
 
   return (
     <EntitlementContext.Provider

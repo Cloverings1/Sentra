@@ -6,13 +6,16 @@ A running log of what's been shipped. Written by Jonas.
 
 ## December 23, 2025
 
+### Beta Mode (No Billing Yet)
+
+Billing is currently disabled for the beta rollout. Access is granted via a **Beta tag** on the user, and upgrade/manage flows are “Notify me / Coming soon” until Stripe is enabled.\n+
 ### Founding Member System (Major Feature)
 
 Built out a complete founding member system with limited lifetime access slots.
 
 **What was built:**
 - `founding_slots` table with 5 pre-allocated slots
-- Auto-claim on signup via `claim_founding_slot()` RPC function
+- Claiming via Stripe/webhook (auto-claim on signup is currently disabled in beta)
 - Real-time slot availability using Supabase subscriptions
 - Epic celebration modal (`FoundingCelebration.tsx`) with:
   - 60 confetti particles with physics
@@ -54,7 +57,7 @@ Added ability for users to submit feedback and bug reports.
 Fixed Settings page to properly show Diamond status for founding members.
 
 **What was fixed:**
-- Added `isDiamond` and `hasPremiumAccess` from SubscriptionContext
+- Subscription UI and gating now use `EntitlementContext` (legacy `SubscriptionContext` is not used for access decisions)
 - Settings now shows "Diamond Plan" with cyan "Lifetime Access" badge
 - Premium features (PDF export) properly gated by `hasPremiumAccess`
 - Removed "Upgrade to Pro" button for Diamond users

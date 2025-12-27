@@ -11,6 +11,7 @@ import { HABIT_COLORS } from '../types';
 
 const PENDING_CHECKOUT_PLAN_KEY = 'pending_checkout_plan';
 type PendingCheckoutPlan = 'pro' | 'founding';
+const BILLING_ENABLED = import.meta.env.VITE_BILLING_ENABLED === 'true';
 
 export const AuthPage = () => {
   const [searchParams] = useSearchParams();
@@ -46,6 +47,7 @@ export const AuthPage = () => {
   useDiamondSpots();
 
   const getCheckoutPlanFromUrlOrStorage = (): PendingCheckoutPlan | null => {
+    if (!BILLING_ENABLED) return null;
     const plan = searchParams.get('plan') || localStorage.getItem(PENDING_CHECKOUT_PLAN_KEY);
     return plan === 'pro' || plan === 'founding' ? plan : null;
   };
@@ -56,6 +58,9 @@ export const AuthPage = () => {
   };
 
   const startCheckout = async (plan: PendingCheckoutPlan) => {
+    if (!BILLING_ENABLED) {
+      throw new Error('Billing is not enabled yet.');
+    }
     // Prevent TrialGuard redirect during checkout redirect
     sessionStorage.setItem('checkout_in_progress', 'true');
     try {
@@ -151,9 +156,15 @@ export const AuthPage = () => {
     setBetaOnboardingComplete(false);
     setBetaOnboardingUserId(null);
 
-    // Get the plan parameter from URL upfront
-    const planParam = searchParams.get('plan');
-    const requiresCheckout = planParam === 'pro' || planParam === 'founding';
+    // Get and normalize the plan parameter from URL upfront.
+    // During beta (billing disabled), treat pro/founding as beta to avoid Stripe flows.
+    const rawPlanParam = searchParams.get('plan');
+    const planParam =
+      !BILLING_ENABLED && (rawPlanParam === 'pro' || rawPlanParam === 'founding')
+        ? 'beta'
+        : rawPlanParam;
+
+    const requiresCheckout = BILLING_ENABLED && (planParam === 'pro' || planParam === 'founding');
     const isBeta = planParam === 'beta';
 
     if (isBeta) {

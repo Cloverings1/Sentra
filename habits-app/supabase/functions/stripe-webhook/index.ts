@@ -20,6 +20,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // Webhook signing secret for signature verification
 const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 
+type WebhookEventStatus = "processing" | "succeeded" | "failed";
+
 // Type definitions for better type safety
 interface SubscriptionUpdate {
   subscription_status: "free" | "trialing" | "active" | "canceled" | "past_due";
@@ -477,29 +479,105 @@ async function handleSubscriptionDeleted(
   );
 }
 
-// Idempotency check: returns true if event was already processed
-async function isEventProcessed(eventId: string): Promise<boolean> {
+const PROCESSING_STALE_MS = 10 * 60 * 1000; // 10 minutes
+
+async function getEventRow(eventId: string): Promise<{ status: WebhookEventStatus; processed_at: string | null } | null> {
   const { data } = await supabase
     .from("processed_webhook_events")
-    .select("id")
+    .select("status, processed_at")
     .eq("id", eventId)
     .maybeSingle();
-  return data !== null;
+  if (!data) return null;
+  return {
+    status: (data.status ?? "succeeded") as WebhookEventStatus,
+    processed_at: data.processed_at ?? null,
+  };
 }
 
-// Mark event as processed (returns false if already exists)
-async function markEventProcessed(
+/**
+ * Acquire processing ownership for an event.
+ * - If event already succeeded => return { action: 'skip' }
+ * - If another worker is processing recently => return { action: 'skip' }
+ * - If stale processing or failed => reclaim and process
+ */
+async function acquireEventProcessing(
   eventId: string,
   eventType: string,
-  metadata: Record<string, unknown> = {}
-): Promise<boolean> {
-  const { error } = await supabase.from("processed_webhook_events").insert({
+  metadata: Record<string, unknown>
+): Promise<{ action: "process" | "skip"; reason?: string }> {
+  const nowIso = new Date().toISOString();
+
+  // Try first-time insert (fast path).
+  const insertRes = await supabase.from("processed_webhook_events").insert({
     id: eventId,
     event_type: eventType,
+    status: "processing",
+    processed_at: nowIso,
     metadata,
   });
-  // If conflict (duplicate), error will be set
-  return !error;
+
+  if (!insertRes.error) {
+    return { action: "process" };
+  }
+
+  const existing = await getEventRow(eventId);
+  if (existing?.status === "succeeded") {
+    return { action: "skip", reason: "already_processed" };
+  }
+
+  // If currently processing and not stale, assume another worker owns it.
+  if (existing?.status === "processing" && existing.processed_at) {
+    const ageMs = Date.now() - new Date(existing.processed_at).getTime();
+    if (!isNaN(ageMs) && ageMs < PROCESSING_STALE_MS) {
+      return { action: "skip", reason: "duplicate_processing" };
+    }
+  }
+
+  // Attempt to reclaim if failed or stale-processing.
+  const staleBeforeIso = new Date(Date.now() - PROCESSING_STALE_MS).toISOString();
+  const { data: reclaimed } = await supabase
+    .from("processed_webhook_events")
+    .update({
+      event_type: eventType,
+      status: "processing",
+      processed_at: nowIso,
+      metadata,
+      error: null,
+    })
+    .eq("id", eventId)
+    .in("status", ["failed", "processing"])
+    .lt("processed_at", staleBeforeIso)
+    .select("id")
+    .maybeSingle();
+
+  if (reclaimed) {
+    return { action: "process" };
+  }
+
+  // If we couldn't reclaim, treat as already being handled.
+  return { action: "skip", reason: existing?.status === "processing" ? "duplicate_processing" : "already_processed" };
+}
+
+async function markEventSucceeded(eventId: string, metadata: Record<string, unknown> = {}) {
+  await supabase
+    .from("processed_webhook_events")
+    .update({
+      status: "succeeded",
+      metadata,
+      error: null,
+    })
+    .eq("id", eventId);
+}
+
+async function markEventFailed(eventId: string, errorMessage: string, metadata: Record<string, unknown> = {}) {
+  await supabase
+    .from("processed_webhook_events")
+    .update({
+      status: "failed",
+      metadata,
+      error: errorMessage,
+    })
+    .eq("id", eventId);
 }
 
 // Main handler
@@ -561,29 +639,18 @@ serve(async (req: Request): Promise<Response> => {
 
   console.log(`Received webhook event: ${event.type} (${event.id})`);
 
-  // P0-BILL-1: Idempotency check - skip if already processed
-  if (await isEventProcessed(event.id)) {
-    console.log(`Event ${event.id} already processed, skipping`);
-    return new Response(
-      JSON.stringify({ received: true, action: "already_processed" }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-
-  // Mark as processed BEFORE handling (prevents race conditions)
-  const marked = await markEventProcessed(event.id, event.type, {
+  // Idempotency + concurrency safety:
+  // - Acquire processing ownership (insert processing row, or reclaim stale/failed)
+  // - Mark succeeded/failed AFTER handling so retries aren't permanently blocked
+  const acquire = await acquireEventProcessing(event.id, event.type, {
     created: event.created,
     livemode: event.livemode,
   });
 
-  if (!marked) {
-    // Another worker already processing this event
-    console.log(`Event ${event.id} being processed by another worker`);
+  if (acquire.action === "skip") {
+    console.log(`Event ${event.id} skipped: ${acquire.reason}`);
     return new Response(
-      JSON.stringify({ received: true, action: "duplicate_processing" }),
+      JSON.stringify({ received: true, action: acquire.reason || "skipped" }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -593,41 +660,62 @@ serve(async (req: Request): Promise<Response> => {
 
   // Handle the event based on type
   try {
+    let result: Response;
     switch (event.type) {
       case "customer.subscription.created":
-        return await handleSubscriptionCreated(
+        result = await handleSubscriptionCreated(
           event.data.object as Stripe.Subscription
         );
+        break;
 
       case "customer.subscription.updated":
-        return await handleSubscriptionUpdated(
+        result = await handleSubscriptionUpdated(
           event.data.object as Stripe.Subscription
         );
+        break;
 
       case "customer.subscription.deleted":
-        return await handleSubscriptionDeleted(
+        result = await handleSubscriptionDeleted(
           event.data.object as Stripe.Subscription
         );
+        break;
 
       case "checkout.session.completed":
-        return await handleCheckoutSessionCompleted(
+        result = await handleCheckoutSessionCompleted(
           event.data.object as Stripe.Checkout.Session
         );
+        break;
 
       default:
         // Acknowledge receipt of unhandled events
         console.log(`Unhandled event type: ${event.type}`);
-        return new Response(
+        result = new Response(
           JSON.stringify({ received: true, action: "ignored" }),
           {
             status: 200,
             headers: { "Content-Type": "application/json" },
           }
         );
+        break;
     }
+
+    await markEventSucceeded(event.id, {
+      created: event.created,
+      livemode: event.livemode,
+      type: event.type,
+      action: "succeeded",
+    });
+
+    return result;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error(`Error handling webhook event: ${errorMessage}`);
+    await markEventFailed(event.id, errorMessage, {
+      created: event.created,
+      livemode: event.livemode,
+      type: event.type,
+      action: "failed",
+    });
     return new Response(
       JSON.stringify({ error: `Error handling webhook: ${errorMessage}` }),
       {

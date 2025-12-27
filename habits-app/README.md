@@ -5,6 +5,7 @@ A calm habit tracking app with a premium, low-stimulus design.
 ## Quick Start
 
 ```bash
+cd habits-app
 npm install
 npm run dev
 ```
@@ -30,6 +31,7 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_key
 VITE_STRIPE_MONTHLY_PRICE_ID=price_xxx
 VITE_STRIPE_ANNUAL_PRICE_ID=price_xxx
+VITE_BILLING_ENABLED=false
 ```
 
 ## Project Structure

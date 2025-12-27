@@ -76,8 +76,8 @@ const TAG_STYLES: Record<ReleaseTag, { bg: string; color: string; border: string
 export const ReleaseNotesPage = () => {
   const reduceMotion = useReducedMotion();
   
-  const toc: TocItem[] = useMemo(() => 
-    RELEASES.map(r => ({ id: r.version, label: r.version })), 
+  const toc: TocItem[] = useMemo(
+    () => [{ id: 'beta-2-0', label: 'Beta 2.0' }, ...RELEASES.map(r => ({ id: r.version, label: r.version }))],
     []
   );
 
@@ -89,6 +89,61 @@ export const ReleaseNotesPage = () => {
       toc={toc}
     >
       <div className="space-y-12">
+        {/* Press release style header */}
+        <motion.section
+          id="beta-2-0"
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+          whileInView={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5 }}
+          className="scroll-mt-32"
+        >
+          <div className="border-b border-white/5 pb-6 mb-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-2xl font-semibold tracking-tight text-[#F5F5F5]">
+                Beta 2.0 is here
+              </h2>
+              <span className="text-sm text-[#6F6F6F] font-medium">
+                Dec 27, 2025
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-5 max-w-3xl">
+            <p className="text-[#A0A0A0] leading-relaxed">
+              Beta 2.0 tightens the experience for private testing: access is now unified under the beta tag,
+              billing flows are intentionally disabled, and feedback/reporting is more consistent.
+            </p>
+
+            <div className="grid gap-3">
+              {[
+                { tag: 'Improvement' as const, text: 'Beta access is consistent across the app (no legacy subscription drift)' },
+                { tag: 'Improvement' as const, text: 'All upgrade/manage CTAs are “Notify me / Coming soon” while billing is off' },
+                { tag: 'Fix' as const, text: 'Feedback tickets now include title/status/page and record the real app version' },
+              ].map((change, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-4 p-3 rounded-lg hover:bg-white/[0.02] transition-colors"
+                >
+                  <span
+                    className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-[6px] min-w-[90px] text-center shrink-0"
+                    style={{
+                      backgroundColor: TAG_STYLES[change.tag].bg,
+                      color: TAG_STYLES[change.tag].color,
+                      border: `1px solid ${TAG_STYLES[change.tag].border}`,
+                    }}
+                  >
+                    {change.tag}
+                  </span>
+                  <span className="text-[15px] text-[#D4D4D4] leading-relaxed pt-[2px]">
+                    {change.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
         {RELEASES.map((release, index) => (
           <motion.section
             key={release.version}

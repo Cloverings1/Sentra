@@ -1,12 +1,11 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Check, Clock, LogOut } from 'lucide-react';
 
 interface TrialExpiredModalProps {
   isOpen: boolean;
+  onClose: () => void;
 }
 
 const FEATURES = [
@@ -15,27 +14,19 @@ const FEATURES = [
   'Cloud sync across devices',
 ];
 
-export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
-  const { openCheckout } = useSubscription();
+export const TrialExpiredModal = ({ isOpen, onClose }: TrialExpiredModalProps) => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
-  const handleSubscribe = async () => {
-    setIsLoading(true);
-    try {
-      await openCheckout(selectedPlan);
-    } catch (error) {
-      console.error('Checkout error:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRequestAccess = () => {
+    // Beta / no-Stripe: send users into the beta request flow.
+    onClose();
+    navigate('/login?mode=signup&plan=beta');
   };
 
   return (
@@ -75,7 +66,7 @@ export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
               >
                 <Clock size={14} style={{ color: '#ef4444' }} />
                 <span className="text-[12px] font-medium" style={{ color: '#ef4444' }}>
-                  Trial ended
+                  Access required
                 </span>
               </div>
             </motion.div>
@@ -88,7 +79,7 @@ export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
               className="text-[24px] font-semibold tracking-tight mb-2"
               style={{ color: 'var(--text-primary)' }}
             >
-              Your free trial has ended
+              This feature is in private beta
             </motion.h2>
 
             <motion.p
@@ -98,79 +89,8 @@ export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
               className="text-[15px] mb-6"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Subscribe to continue building your habits. Your data is safe and waiting for you.
+              Billing isn’t enabled yet. If you want access, request a beta invite and we’ll get you in.
             </motion.p>
-
-            {/* Pricing Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.3 }}
-              className="grid grid-cols-2 gap-3 mb-6"
-            >
-              {/* Monthly */}
-              <motion.button
-                type="button"
-                onClick={() => setSelectedPlan('monthly')}
-                className={`relative p-4 rounded-2xl border transition-all text-left ${
-                  selectedPlan === 'monthly'
-                    ? 'border-white/30 bg-white/10'
-                    : 'border-white/10 bg-white/5 hover:bg-white/8'
-                }`}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="text-[13px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
-                  Monthly
-                </div>
-                <div className="text-[24px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  $9
-                  <span className="text-[14px] font-normal" style={{ color: 'var(--text-muted)' }}>/mo</span>
-                </div>
-                {selectedPlan === 'monthly' && (
-                  <motion.div
-                    layoutId="trial-plan-indicator"
-                    className="absolute top-3 right-3 w-5 h-5 rounded-full bg-white flex items-center justify-center"
-                    initial={false}
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  >
-                    <Check size={12} color="#0B0B0B" strokeWidth={3} />
-                  </motion.div>
-                )}
-              </motion.button>
-
-              {/* Annual */}
-              <motion.button
-                type="button"
-                onClick={() => setSelectedPlan('annual')}
-                className={`relative p-4 rounded-2xl border transition-all text-left ${
-                  selectedPlan === 'annual'
-                    ? 'border-white/30 bg-white/10'
-                    : 'border-white/10 bg-white/5 hover:bg-white/8'
-                }`}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="text-[13px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
-                  Annual
-                </div>
-                <div className="text-[24px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  $79
-                  <span className="text-[14px] font-normal" style={{ color: 'var(--text-muted)' }}>/yr</span>
-                </div>
-                <div className="text-[12px] mt-1" style={{ color: 'var(--accent)' }}>
-                  Save $29/year
-                </div>
-                {selectedPlan === 'annual' && (
-                  <motion.div
-                    layoutId="trial-plan-indicator"
-                    className="absolute top-3 right-3 w-5 h-5 rounded-full bg-white flex items-center justify-center"
-                    initial={false}
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  >
-                    <Check size={12} color="#0B0B0B" strokeWidth={3} />
-                  </motion.div>
-                )}
-              </motion.button>
-            </motion.div>
 
             {/* Features */}
             <motion.div
@@ -211,16 +131,15 @@ export const TrialExpiredModal = ({ isOpen }: TrialExpiredModalProps) => {
             >
               <motion.button
                 type="button"
-                onClick={handleSubscribe}
-                disabled={isLoading}
+                onClick={handleRequestAccess}
                 className="liquid-glass-btn-primary w-full"
-                whileHover={{ scale: isLoading ? 1 : 1.02 }}
-                whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {isLoading ? 'Loading...' : 'Subscribe to Pro'}
+                Request beta access
               </motion.button>
               <p className="text-center text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                Cancel anytime. Your habits are waiting.
+                You can keep using Habits once you’re invited.
               </p>
               <motion.button
                 type="button"

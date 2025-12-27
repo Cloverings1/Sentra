@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
-import { useSubscription } from '../contexts/SubscriptionContext';
 import { useEntitlement } from '../contexts/EntitlementContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AddHabitModal } from './AddHabitModal';
@@ -26,8 +25,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
-  const { isTrialing } = useSubscription();
-  const { hasAccess, plan, isTrialing: isTrialingEntitlement, trialState, isBeta } = useEntitlement();
+  const { hasAccess, plan, isTrialing, trialState, isBeta } = useEntitlement();
   const { user } = useAuth();
 
   // Handler to trigger paywall when user without access tries to interact
@@ -139,7 +137,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
               }}
             >
               {plan === 'founding' ? 'Diamond' :
-               plan === 'pro' && isTrialingEntitlement ? `Trial${trialState?.daysRemaining ? ` · ${trialState.daysRemaining}d` : ''}` :
+               plan === 'pro' && isTrialing ? `Trial${trialState?.daysRemaining ? ` · ${trialState.daysRemaining}d` : ''}` :
                plan === 'pro' ? 'Pro' :
                isBeta ? 'Beta' :
                'Free'}
@@ -231,7 +229,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </header>
 
       {/* Trial Banner - shows during active trial */}
-      {isTrialing && (
+      {isTrialing && !isBeta && (
         <TrialBanner onUpgradeClick={() => setShowUpgradeModal(true)} />
       )}
 

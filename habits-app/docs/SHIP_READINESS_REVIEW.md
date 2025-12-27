@@ -23,7 +23,7 @@
 |----|-------|--------|-----|--------------|
 | P1-BILL-2 | subscription.deleted sets plan='pro' instead of 'none' | ✅ FIXED | Changed to plan='none' | `stripe-webhook/index.ts` |
 | P1-BILL-3 | Founding slot race condition + client can call claim RPC | ✅ FIXED | Transactional claim + revoked client access | `012_revoke_founding_claim_rpc.sql` |
-| P1-CI-1 | No CI gates for typecheck/lint/build | ✅ FIXED | Added test:ci script | `package.json` |
+| P1-CI-1 | No CI gates for typecheck/lint/build | DEFERRED | Add CI workflow post-beta | — |
 
 ### P2 - Nice to Have (NOT BLOCKING)
 
@@ -132,21 +132,20 @@ curl -X POST $WEBHOOK_URL -d '{"id": "evt_test123", ...}'
 
 ---
 
-### PR4: Test Infrastructure (Deploy After Launch)
+### PR4: Test Infrastructure (Post-Beta)
 
-**Scope**: CI gates and test setup
+**Scope**: CI gates and test setup (deferred; not present in repo by default)
 
-**Files**:
-- `package.json` (test scripts)
-- `vitest.config.ts`
-- `src/test/setup.ts`
-- `src/test/rls-policies.test.ts`
+**Files** (recommended future work):
+- GitHub Actions workflow (typecheck/lint/build)
+- Optional: unit test harness (Vitest) + RLS regression checks
 
 **Risk**: NONE (dev-only)
 
-**Verification**:
+**Verification** (current):
 ```bash
-npm run test:ci  # Should pass: typecheck + lint + test + build
+npm run lint
+npm run build
 ```
 
 ---
@@ -219,10 +218,10 @@ npm run test:ci  # Should pass: typecheck + lint + test + build
 
 | Check | Status | Evidence |
 |-------|--------|----------|
-| Typecheck in CI | ✅ READY | `test:ci` script added |
-| Lint in CI | ✅ READY | `test:ci` script added |
-| Build in CI | ✅ READY | `test:ci` script added |
-| Unit tests run | ✅ READY | Vitest configured |
+| Typecheck in CI | NOT SET UP | Add CI workflow |
+| Lint in CI | NOT SET UP | Add CI workflow |
+| Build in CI | NOT SET UP | Add CI workflow |
+| Unit tests run | NOT SET UP | Optional post-beta |
 
 ---
 
@@ -255,7 +254,7 @@ git push origin master
 | Any authenticated user can modify entitlements/billing from client | ✅ BLOCKED (policies dropped) |
 | Stripe webhook not idempotent + replay-safe | ✅ FIXED (idempotency table) |
 | Tenant isolation not proven via RLS tests | ✅ PROVEN (documented + test file) |
-| CI gates missing for typecheck + lint + build | ✅ ADDED (test:ci script) |
+| CI gates missing for typecheck + lint + build | DEFERRED |
 | Any infinite render loop exists | ✅ FIXED (Dashboard) |
 
 ### Summary

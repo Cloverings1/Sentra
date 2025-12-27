@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSubscription } from '../contexts/SubscriptionContext';
 
 export type PaywallTrigger = 'habit_limit' | 'export' | 'lock';
 
@@ -26,16 +25,19 @@ const TRIGGER_COPY: Record<PaywallTrigger, { title: string; subtitle: string }> 
 };
 
 export const PaywallModal = ({ isOpen, onClose, trigger }: PaywallModalProps) => {
-  const { openCheckout } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [isLoading, setIsLoading] = useState(false);
+  const [requested, setRequested] = useState(false);
 
   const { title, subtitle } = TRIGGER_COPY[trigger];
 
   const handleSubscribe = async () => {
     setIsLoading(true);
     try {
-      await openCheckout(selectedPlan);
+      // Beta / no-Stripe: we don't redirect to billing.
+      // Capture intent locally (you can later wire this to feedback or an email capture).
+      await new Promise((r) => setTimeout(r, 500));
+      setRequested(true);
     } catch (error) {
       console.error('Checkout error:', error);
     } finally {
@@ -220,7 +222,7 @@ export const PaywallModal = ({ isOpen, onClose, trigger }: PaywallModalProps) =>
                 transition={{ delay: 0.2 }}
                 type="button"
                 onClick={handleSubscribe}
-                disabled={isLoading}
+                disabled={isLoading || requested}
                 className="w-full py-4 rounded-xl text-[15px] font-semibold transition-all duration-200"
                 style={{
                   background: '#FFFFFF',
@@ -230,7 +232,7 @@ export const PaywallModal = ({ isOpen, onClose, trigger }: PaywallModalProps) =>
                 whileHover={{ scale: isLoading ? 1 : 1.01 }}
                 whileTap={{ scale: isLoading ? 1 : 0.98 }}
               >
-                {isLoading ? 'Loading...' : 'Continue'}
+                {requested ? 'Request received' : isLoading ? 'Loading...' : 'Notify me'}
               </motion.button>
 
               {/* Cancel link */}

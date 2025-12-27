@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useHabits } from '../contexts/HabitsContext';
 import type { Habit } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { useSubscription } from '../contexts/SubscriptionContext';
 import { useEntitlement } from '../contexts/EntitlementContext';
 import { storage } from '../utils/storage';
 import { EditHabitModal } from './EditHabitModal';
@@ -45,8 +44,7 @@ export const Settings = () => {
     getDisplayName,
     getAvatarUrl,
   } = useAuth();
-  const { isTrialing, trialState, status, currentPeriodEnd, cancelAtPeriodEnd, openPortal } = useSubscription();
-  const { hasAccess, isFounding, isPro, isBeta } = useEntitlement();
+  const { hasAccess, isFounding, isPro, isBeta, isTrialing, trialState, status, entitlement } = useEntitlement();
   const hasPremiumAccess = hasAccess;
 
   // Existing state
@@ -256,16 +254,6 @@ export const Settings = () => {
     });
   };
 
-  const getSubscriptionStatusLabel = (): string => {
-    if (status === 'active' && cancelAtPeriodEnd) {
-      return 'Canceling';
-    }
-    if (status === 'active') {
-      return 'Active';
-    }
-    return 'Free';
-  };
-
   // Show admin feedback view if active
   if (showAdminFeedback && isAdmin) {
     return <AdminFeedbackView onBack={() => setShowAdminFeedback(false)} />;
@@ -321,13 +309,11 @@ export const Settings = () => {
                     style={{
                       backgroundColor: isTrialing
                         ? 'rgba(34, 197, 94, 0.15)'
-                        : cancelAtPeriodEnd
-                          ? 'rgba(251, 191, 36, 0.2)'
-                          : 'rgba(34, 197, 94, 0.2)',
-                      color: isTrialing ? '#22c55e' : cancelAtPeriodEnd ? '#fbbf24' : '#22c55e',
+                        : 'rgba(34, 197, 94, 0.2)',
+                      color: isTrialing ? '#22c55e' : '#22c55e',
                     }}
                   >
-                    {isTrialing ? 'Free Trial' : getSubscriptionStatusLabel()}
+                    {isTrialing ? 'Free Trial' : status === 'active' ? 'Active' : status === 'past_due' ? 'Past due' : status === 'canceled' ? 'Canceled' : 'Free'}
                   </span>
                 )}
                 {isTrialing && trialState && (
@@ -340,9 +326,9 @@ export const Settings = () => {
                   </span>
                 )}
               </div>
-              {isPro && currentPeriodEnd && (
+              {isPro && entitlement?.current_period_ends_at && (
                 <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {cancelAtPeriodEnd ? 'Ends' : 'Renews'}: {formatSubscriptionDate(currentPeriodEnd)}
+                  Renews: {formatSubscriptionDate(entitlement.current_period_ends_at)}
                 </p>
               )}
             </div>
@@ -371,11 +357,11 @@ export const Settings = () => {
               </span>
             ) : isPro || isTrialing ? (
               <button
-                onClick={openPortal}
+                onClick={() => setShowFeedbackModal(true)}
                 className="text-[14px] font-medium px-4 py-2 rounded-lg transition-all hover:bg-white/10"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Manage
+                Notify me
               </button>
             ) : (
               <button
@@ -386,7 +372,7 @@ export const Settings = () => {
                   color: '#0B0B0B',
                 }}
               >
-                Start Trial
+                Request access
               </button>
             )}
           </div>

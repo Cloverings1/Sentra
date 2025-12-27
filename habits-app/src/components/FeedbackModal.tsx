@@ -7,7 +7,6 @@ interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPage?: string;
-  allowAnonymous?: boolean; // Allow submissions without login
 }
 
 type FeedbackType = 'feedback' | 'bug' | 'feature';
@@ -26,7 +25,7 @@ const PRIORITIES: { value: PriorityLevel; label: string; description: string; co
   { value: 'critical', label: 'Critical', description: 'Urgent - Jonas gets notified', color: '#ef4444' },
 ];
 
-export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown', allowAnonymous = false }: FeedbackModalProps) => {
+export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown' }: FeedbackModalProps) => {
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [type, setType] = useState<FeedbackType | null>(null);
@@ -59,15 +58,13 @@ export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown', allowA
   };
 
   const handleSubmit = async () => {
-    // Allow submission if user is logged in OR if anonymous is allowed
-    const canSubmitAnonymously = allowAnonymous && !user;
-    if ((!user && !canSubmitAnonymously) || !type || !priority || !title.trim() || !message.trim()) return;
+    if (!user || !type || !priority || !title.trim() || !message.trim()) return;
 
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('user_feedback').insert({
-        user_id: user?.id || null,
-        user_email: user?.email || `anonymous@${currentPage.toLowerCase().replace(/\s+/g, '-')}`,
+        user_id: user.id,
+        user_email: user.email,
         type,
         priority,
         title: title.trim(),
@@ -75,7 +72,7 @@ export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown', allowA
         status: 'open',
         page: currentPage,
         platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
-        app_version: '1.0.0',
+        app_version: __APP_VERSION__,
       });
 
       if (error) throw error;
