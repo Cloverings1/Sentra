@@ -191,7 +191,7 @@ export const StatusPage = () => {
       <motion.button
         type="button"
         onClick={() => setShowFeedback(true)}
-        className="feedback-fab fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center z-40"
+        className="feedback-fab fixed bottom-6 right-6 h-12 px-4 rounded-full flex items-center gap-2 z-40"
         whileHover={reduceMotion ? undefined : { scale: 1.05 }}
         whileTap={reduceMotion ? undefined : { scale: 0.95 }}
         initial={reduceMotion ? false : { opacity: 0, y: 20 }}
@@ -201,6 +201,7 @@ export const StatusPage = () => {
         aria-label="Report an issue"
       >
         <MessageCircle size={20} className="feedback-fab-icon" />
+        <span className="feedback-fab-label">Feedback</span>
       </motion.button>
 
       <FeedbackModal

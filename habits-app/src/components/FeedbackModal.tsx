@@ -19,10 +19,24 @@ const TYPES: { value: FeedbackType; label: string; icon: string; description: st
 ];
 
 const PRIORITIES: { value: PriorityLevel; label: string; description: string; color: string }[] = [
-  { value: 'fyi', label: 'FYI', description: 'Just sharing', color: '#6366f1' },
-  { value: 'minor', label: 'Minor', description: 'Small issue or suggestion', color: '#3b82f6' },
-  { value: 'important', label: 'Important', description: 'Affects usability', color: '#f97316' },
-  { value: 'critical', label: 'Critical', description: 'Urgent - Jonas gets notified', color: '#ef4444' },
+  {
+    value: 'fyi',
+    label: 'FYI',
+    description: 'Minor issue or suggestion. Not urgent — we’ll review soon.',
+    color: '#6366f1'
+  },
+  {
+    value: 'important',
+    label: 'Important',
+    description: 'Affects usability. I’d love this improved or fixed.',
+    color: '#f97316'
+  },
+  {
+    value: 'critical',
+    label: 'Critical',
+    description: 'Blocking or urgent. Jonas gets notified.',
+    color: '#ef4444'
+  },
 ];
 
 export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown' }: FeedbackModalProps) => {
@@ -226,12 +240,12 @@ export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown' }: Feed
                       exit={{ opacity: 0, y: -8 }}
                       className="space-y-3"
                     >
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="flex gap-3 overflow-x-auto pb-1">
                         {PRIORITIES.map((p) => (
                           <button
                             key={p.value}
                             onClick={() => handlePrioritySelect(p.value)}
-                            className="p-5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02]"
+                            className="p-5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02] flex-1 min-w-[180px]"
                             style={{
                               background: `linear-gradient(135deg, ${p.color}10 0%, ${p.color}05 100%)`,
                               border: `1px solid ${p.color}25`,

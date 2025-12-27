@@ -849,8 +849,23 @@ body {
   transition: color 160ms ease;
 }
 
+.feedback-fab-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 160ms ease, opacity 160ms ease;
+  user-select: none;
+  pointer-events: none;
+}
+
 .feedback-fab:hover .feedback-fab-icon {
   color: rgba(255, 255, 255, 0.78);
+}
+
+.feedback-fab:hover .feedback-fab-label {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 html.light .feedback-fab {
@@ -869,6 +884,14 @@ html.light .feedback-fab-icon {
 
 html.light .feedback-fab:hover .feedback-fab-icon {
   color: rgba(0, 0, 0, 0.78);
+}
+
+html.light .feedback-fab-label {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+html.light .feedback-fab:hover .feedback-fab-label {
+  color: rgba(0, 0, 0, 0.80);
 }
 
 /* Habit Card (Reference Style) */
