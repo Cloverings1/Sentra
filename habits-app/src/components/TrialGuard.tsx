@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useEntitlement } from '../contexts/EntitlementContext';
+import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 interface TrialGuardProps {
@@ -16,7 +17,7 @@ export const TrialGuard = ({ children }: TrialGuardProps) => {
   const { loading: entitlementLoading } = useEntitlement();
 
   // Show loading indicator while auth or entitlement is loading
-  if (authLoading || entitlementLoading || !user) {
+  if (authLoading || entitlementLoading) {
     return (
       <div className="min-h-screen bg-[#0B0B0B] flex items-center justify-center">
         <motion.div
@@ -41,6 +42,11 @@ export const TrialGuard = ({ children }: TrialGuardProps) => {
         </motion.div>
       </div>
     );
+  }
+
+  // If no user after loading completes, redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   // Always render the app - paywall is triggered on interaction

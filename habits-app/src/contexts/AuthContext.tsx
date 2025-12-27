@@ -44,7 +44,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     // Clear any checkout flags on logout
     sessionStorage.removeItem('checkout_in_progress');
-    await supabase.auth.signOut();
+    sessionStorage.removeItem('beta_onboarding_in_progress');
+    sessionStorage.removeItem('beta_show_loading');
+    
+    // Use 'local' scope to avoid cookie issues on localhost
+    // This signs out only from the current tab/browser, not all devices
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    
+    if (error) {
+      console.error('Sign out error:', error);
+      // Force clear local state even if server request failed
+      setUser(null);
+      setSession(null);
+    }
   };
 
   const updateDisplayName = async (name: string) => {
