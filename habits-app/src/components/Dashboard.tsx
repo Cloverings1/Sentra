@@ -63,12 +63,14 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const prevCompletedRef = useRef(completedToday);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasShownConfetti, setHasShownConfetti] = useState(false);
+  const [showPerfectDayPill, setShowPerfectDayPill] = useState(false);
 
   // Trigger confetti when achieving Perfect Day
   useEffect(() => {
     // Only trigger when going from incomplete to complete
     if (isPerfectDay && !hasShownConfetti && prevCompletedRef.current < totalHabits) {
       setShowConfetti(true);
+      setShowPerfectDayPill(true);
       setHasShownConfetti(true);
 
       // Haptic feedback for Perfect Day
@@ -80,6 +82,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       setTimeout(() => {
         setShowConfetti(false);
       }, 2000);
+
+      // Hide Perfect Day pill after 3 seconds
+      setTimeout(() => {
+        setShowPerfectDayPill(false);
+      }, 3000);
     }
     prevCompletedRef.current = completedToday;
   }, [completedToday, totalHabits, isPerfectDay, hasShownConfetti]);
@@ -87,6 +94,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   // Reset hasShownConfetti when day changes or habits change
   useEffect(() => {
     setHasShownConfetti(false);
+    setShowPerfectDayPill(false);
   }, [formatDate(selectedDate), habits.length]);
 
   return (
@@ -359,7 +367,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
       {/* Perfect Day overlay message */}
       <AnimatePresence>
-        {isPerfectDay && (
+        {showPerfectDayPill && (
           <motion.div
             className="fixed inset-x-0 bottom-24 flex justify-center pointer-events-none z-40"
             initial={{ opacity: 0, y: 20 }}
