@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { ChevronLeft, Check } from 'lucide-react';
@@ -51,11 +51,22 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
   const [selectedEntry, setSelectedEntry] = useState<FeedbackEntry | null>(null);
   const [internalNotes, setInternalNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [bulkWorking, setBulkWorking] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<'all' | 'feedback' | 'bug' | 'feature'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'fyi' | 'minor' | 'important' | 'critical'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | TicketStatus>('all');
+
+  const unresolvedIds = useMemo(
+    () => feedback.filter(f => f.status !== 'resolved').map(f => f.id),
+    [feedback]
+  );
+  const resolvedIds = useMemo(
+    () => feedback.filter(f => f.status === 'resolved').map(f => f.id),
+    [feedback]
+  );
 
   const fetchFeedback = useCallback(async () => {
     setLoading(true);
@@ -108,6 +119,113 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
       }
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleDeleteEntry = async (entry: FeedbackEntry) => {
+    const confirmText =
+      entry.status === 'resolved'
+        ? 'Delete this resolved ticket? This cannot be undone.'
+        : 'This ticket is not marked resolved yet. Delete anyway? This cannot be undone.';
+    if (!confirm(confirmText)) return;
+
+    setDeletingId(entry.id);
+    try {
+      const { error } = await supabase.from('user_feedback').delete().eq('id', entry.id);
+      if (error) throw error;
+
+      setFeedback(prev => prev.filter(f => f.id !== entry.id));
+      if (selectedEntry?.id === entry.id) {
+        setSelectedEntry(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete feedback:', error);
+      alert('Failed to delete ticket. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleMarkAllResolved = async () => {
+    if (unresolvedIds.length === 0) return;
+    if (!confirm(`Mark ${unresolvedIds.length} ticket${unresolvedIds.length === 1 ? '' : 's'} as resolved?`)) return;
+
+    setBulkWorking(true);
+    try {
+      const resolved_at = new Date().toISOString();
+      const { error } = await supabase
+        .from('user_feedback')
+        .update({ status: 'resolved', resolved_at })
+        .in('id', unresolvedIds);
+
+      if (error) throw error;
+
+      setFeedback(prev =>
+        prev.map(f => (f.status === 'resolved' ? f : { ...f, status: 'resolved', resolved_at }))
+      );
+      if (selectedEntry && selectedEntry.status !== 'resolved') {
+        setSelectedEntry({ ...selectedEntry, status: 'resolved', resolved_at });
+      }
+    } catch (error) {
+      console.error('Failed to mark all resolved:', error);
+      alert('Failed to mark all resolved. Please try again.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleDeleteResolved = async () => {
+    if (resolvedIds.length === 0) return;
+    if (!confirm(`Delete ${resolvedIds.length} resolved ticket${resolvedIds.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+
+    setBulkWorking(true);
+    try {
+      const { error } = await supabase.from('user_feedback').delete().in('id', resolvedIds);
+      if (error) throw error;
+
+      setFeedback(prev => prev.filter(f => f.status !== 'resolved'));
+      if (selectedEntry?.status === 'resolved') {
+        setSelectedEntry(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete resolved:', error);
+      alert('Failed to delete resolved tickets. Please try again.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleResolveAndDeleteAll = async () => {
+    if (feedback.length === 0) return;
+    if (
+      !confirm(
+        `Resolve and delete ${feedback.length} ticket${feedback.length === 1 ? '' : 's'}? This will mark everything as resolved, then permanently delete them.`
+      )
+    ) {
+      return;
+    }
+
+    setBulkWorking(true);
+    try {
+      const ids = feedback.map(f => f.id);
+      const resolved_at = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from('user_feedback')
+        .update({ status: 'resolved', resolved_at })
+        .in('id', ids);
+      if (updateError) throw updateError;
+
+      const { error: deleteError } = await supabase.from('user_feedback').delete().in('id', ids);
+      if (deleteError) throw deleteError;
+
+      setFeedback([]);
+      setSelectedEntry(null);
+    } catch (error) {
+      console.error('Failed to resolve & delete all:', error);
+      alert('Failed to resolve & delete. Please try again.');
+    } finally {
+      setBulkWorking(false);
     }
   };
 
@@ -192,7 +310,7 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
 
       {/* Filters */}
       <motion.div
-        className="flex flex-wrap gap-3 mb-8"
+        className="flex flex-wrap gap-3 mb-8 items-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.05 }}
@@ -252,6 +370,53 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
         <span className="text-[13px] self-center ml-2" style={{ color: 'var(--text-muted)' }}>
           {feedback.length} {feedback.length === 1 ? 'ticket' : 'tickets'}
         </span>
+
+        <div className="flex gap-2 ml-auto">
+          <button
+            onClick={handleMarkAllResolved}
+            disabled={bulkWorking || unresolvedIds.length === 0}
+            className="px-3 py-2 rounded-lg text-[13px] transition-all disabled:opacity-40"
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: 'var(--text-primary)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              cursor: bulkWorking || unresolvedIds.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+            type="button"
+          >
+            Mark all resolved {unresolvedIds.length > 0 ? `(${unresolvedIds.length})` : ''}
+          </button>
+
+          <button
+            onClick={handleDeleteResolved}
+            disabled={bulkWorking || resolvedIds.length === 0}
+            className="px-3 py-2 rounded-lg text-[13px] transition-all disabled:opacity-40"
+            style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              cursor: bulkWorking || resolvedIds.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+            type="button"
+          >
+            Delete resolved {resolvedIds.length > 0 ? `(${resolvedIds.length})` : ''}
+          </button>
+
+          <button
+            onClick={handleResolveAndDeleteAll}
+            disabled={bulkWorking || feedback.length === 0}
+            className="px-3 py-2 rounded-lg text-[13px] transition-all disabled:opacity-40"
+            style={{
+              background: 'rgba(239, 68, 68, 0.18)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              cursor: bulkWorking || feedback.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+            type="button"
+          >
+            Resolve & delete all
+          </button>
+        </div>
       </motion.div>
 
       {/* Feedback List */}
@@ -525,6 +690,24 @@ export const AdminFeedbackView = ({ onBack }: AdminFeedbackViewProps) => {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Delete */}
+                <div className="pt-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <button
+                    onClick={() => handleDeleteEntry(selectedEntry)}
+                    disabled={deletingId === selectedEntry.id}
+                    className="w-full py-2.5 rounded-xl text-[13px] font-medium transition-all"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#ef4444',
+                      opacity: deletingId === selectedEntry.id ? 0.6 : 1,
+                    }}
+                    type="button"
+                  >
+                    {deletingId === selectedEntry.id ? 'Deleting...' : 'Delete ticket'}
+                  </button>
                 </div>
               </div>
             </motion.div>
