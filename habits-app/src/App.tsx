@@ -56,6 +56,7 @@ const AppLayout = () => {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [showFeedback, setShowFeedback] = useState(false);
   const [showBetaLoading, setShowBetaLoading] = useState(false);
+  const [betaLoadingComplete, setBetaLoadingComplete] = useState(false);
   const { user, loading } = useAuth();
   const { isBeta, loading: entitlementLoading } = useEntitlement();
   const navigate = useNavigate();
@@ -70,18 +71,19 @@ const AppLayout = () => {
   // Check if beta user needs to see loading screen
   useEffect(() => {
     if (loading || entitlementLoading || !user) return;
-    
+
     // Check for sessionStorage flag first (set after terms acceptance)
     // This takes priority and works even if isBeta isn't ready yet
     const shouldShowLoading = sessionStorage.getItem('beta_show_loading') === 'true';
-    
+
     if (shouldShowLoading) {
       // Clear the flag immediately to prevent showing again
       sessionStorage.removeItem('beta_show_loading');
       setShowBetaLoading(true);
+      setBetaLoadingComplete(false);
       return;
     }
-    
+
     // Fallback: check if user is beta and hasn't seen loading screen (per-user)
     if (isBeta) {
       const hasSeenLoading =
@@ -89,12 +91,29 @@ const AppLayout = () => {
         localStorage.getItem('beta_loading_seen') === 'true'; // legacy key
       if (!hasSeenLoading) {
         setShowBetaLoading(true);
+        setBetaLoadingComplete(false);
       }
     }
   }, [isBeta, loading, entitlementLoading, user]);
 
+  // Complete the beta loading after a delay
+  useEffect(() => {
+    if (!showBetaLoading) return;
+
+    const timer = setTimeout(() => {
+      setBetaLoadingComplete(true);
+      // Mark as seen so it doesn't show again
+      if (user) {
+        localStorage.setItem(`beta_loading_seen:${user.id}`, 'true');
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [showBetaLoading, user]);
+
   const handleBetaLoadingComplete = () => {
     setShowBetaLoading(false);
+    setBetaLoadingComplete(false);
   };
 
   if (loading || entitlementLoading) return null;
@@ -102,7 +121,7 @@ const AppLayout = () => {
 
   // Show beta loading screen if needed
   if (showBetaLoading) {
-    return <BetaLoadingScreen isOpen={showBetaLoading} onComplete={handleBetaLoadingComplete} />;
+    return <BetaLoadingScreen isOpen={showBetaLoading} complete={betaLoadingComplete} onComplete={handleBetaLoadingComplete} />;
   }
 
   const renderView = () => {
