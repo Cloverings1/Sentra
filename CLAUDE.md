@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## About
 
-Habits is a premium SaaS web app helping people build consistent daily routines. The design philosophy is **"quiet, premium, low-stimulus"** - intentional and restrained interfaces that let users focus on what matters. Features cloud sync, subscription tiers, and a founding member program with lifetime access.
+Sentra is a premium tech support SaaS for Apple products and general technology. The design philosophy is **"quiet, premium, low-stimulus"** - intentional and restrained interfaces that let users focus on getting help. Users submit support tickets, and the admin (Jonas) reviews them, assigns a pricing tier, and resolves issues.
 
-**Production URL**: https://habit-psi.vercel.app
+**Admin**: jonas@jonasinfocus.com
+**Supabase Project**: qhcuzqkiavbtirynvmyp
 
 ## Commands
 
@@ -25,8 +26,6 @@ cd habits-app && npm run preview  # Preview production build
 - **Framer Motion** for animations
 - **Lucide React** for icons
 - **Supabase** for auth, database, storage, and realtime
-- **Stripe** for payments (via Edge Functions)
-- **jsPDF** for PDF report generation
 
 ## Architecture
 
@@ -36,327 +35,157 @@ habits-app/
 │   ├── App.tsx                    # Root component with routing
 │   ├── main.tsx                   # Entry point
 │   ├── index.css                  # Design system + Tailwind
-│   ├── types/index.ts             # TypeScript types
 │   ├── contexts/
 │   │   ├── AuthContext.tsx        # Auth state, profile updates, avatar upload
-│   │   ├── HabitsContext.tsx      # Habit CRUD, completions, streaks
-│   │   ├── EntitlementContext.tsx # Current subscription (reads user_entitlements)
-│   │   ├── SubscriptionContext.tsx # Legacy subscription (reads user_profiles)
 │   │   └── ThemeContext.tsx       # Light/dark theme
-│   ├── hooks/
-│   │   └── useDiamondSpots.ts     # Founding member slot management
 │   ├── components/
-│   │   ├── Pages/
-│   │   │   ├── LandingPage.tsx    # Marketing page with pricing
-│   │   │   ├── AuthPage.tsx       # Login/signup with founding claim
-│   │   │   ├── Dashboard.tsx      # Main habit tracking view
-│   │   │   ├── Calendar.tsx       # Month view
-│   │   │   ├── Stats.tsx          # Analytics & streak history
-│   │   │   └── Settings.tsx       # User preferences, admin panel
-│   │   ├── Modals/
-│   │   │   ├── AddHabitModal.tsx        # Create habit
-│   │   │   ├── EditHabitModal.tsx       # Edit habit
-│   │   │   ├── PaywallModal.tsx         # Upgrade prompt
-│   │   │   ├── FoundingCelebration.tsx  # Epic confetti celebration
-│   │   │   ├── FeedbackModal.tsx        # User feedback/bug reports
-│   │   │   ├── ConsistencyReport.tsx    # PDF report preview
-│   │   │   └── TermsModal.tsx           # T&C acceptance
-│   │   ├── Reusable/
-│   │   │   ├── HabitCard.tsx      # Single habit with toggle
-│   │   │   ├── WeekView.tsx       # Date selector with dots
-│   │   │   ├── CompletionDots.tsx # Visual completion indicators
-│   │   │   ├── GlobalStreak.tsx   # Streak counter with emoji
-│   │   │   └── Navigation.tsx     # Bottom nav bar
-│   │   ├── Guards/
-│   │   │   └── TrialGuard.tsx     # Protects routes requiring subscription
-│   │   ├── Billing/
-│   │   │   └── BillingReturnPage.tsx  # Stripe checkout return handler
-│   │   └── Admin/
-│   │       └── AdminFeedbackView.tsx  # Admin feedback management
+│   │   ├── LandingPage.tsx        # Marketing page with services & pricing
+│   │   ├── AuthPage.tsx           # Login/signup
+│   │   ├── Dashboard.tsx          # User ticket view
+│   │   ├── Settings.tsx           # User preferences
+│   │   ├── AdminTicketsView.tsx   # Admin ticket management
+│   │   ├── TicketModal.tsx        # Submit new ticket
+│   │   ├── PrivacyPage.tsx        # Privacy policy
+│   │   ├── TermsPage.tsx          # Terms of service
+│   │   └── StatusPage.tsx         # Service status
 │   └── utils/
 │       ├── supabase.ts            # Supabase client
-│       ├── stripe.ts              # Stripe integration
-│       ├── dateUtils.ts           # Date formatting, streak calculation
-│       ├── storage.ts             # localStorage wrapper
-│       ├── reportGenerator.ts     # PDF report generation
-│       ├── avatarUtils.ts         # Avatar validation
-│       └── motivationalMessages.ts # Progress-based messages
-├── supabase/
-│   ├── migrations/                # SQL migrations
-│   ├── functions/                 # Edge Functions (Stripe)
-│   │   ├── stripe-webhook/        # Handle Stripe events
-│   │   ├── create-pro-trial-session/   # Pro subscription with 7-day trial
-│   │   ├── create-founding-session/    # Founders Edition one-time payment
-│   │   └── create-portal-session/      # Billing portal access
-│   └── email-templates/           # Custom auth emails
-├── public/
-│   └── og-image.png               # Social media preview
+│       └── avatarUtils.ts         # Avatar validation
 └── index.html                     # Entry HTML with OG meta tags
 ```
 
-## Subscription Tiers
+## Pricing Model
 
+### One-Time Fixes (A La Carte)
+| Tier | Price | Description |
+|------|-------|-------------|
+| **Quick Fix** | $49 | Simple issues, quick resolution |
+| **Standard Fix** | $99 | Moderate complexity |
+| **Complex Fix** | $199 | Advanced troubleshooting |
+
+### Monthly Subscriptions (Future)
 | Tier | Price | Features |
 |------|-------|----------|
-| **Free** | $0 | Up to 3 habits, daily/weekly views, local storage |
-| **Pro** | $9/month (7-day free trial) | Unlimited habits, cloud sync, PDF reports |
-| **Founders Edition** | $149 (Lifetime) | All Pro features forever, founding member exclusive |
+| **Tech Peace of Mind** | $199/mo | Priority support, scheduled sessions |
+| **Pro Tech Partner** | $399/mo | Unlimited support, dedicated scheduling |
 
-### Beta Mode (Current)
+## Ticket Workflow
 
-For the current beta rollout, **Stripe/billing is disabled by default** (`VITE_BILLING_ENABLED=false`).
+1. **User submits ticket** → Status: `pending_review`
+2. **Admin reviews and assigns tier** → Status: `quote_sent`
+3. **User pays** → Status: `paid`
+4. **Admin works on issue** → Status: `in_progress`
+5. **Admin resolves** → Status: `completed`
 
-- Access is granted via `user.user_metadata.beta_access === true` (primary), or via an entitlement row that represents “free pro” access (secondary).
-- Upgrade/manage subscription surfaces should behave as **“Notify me / Coming soon”** until billing is enabled.
-
-### Founding Member System
-
-Limited slots (currently 5) for lifetime Founders Edition access:
-- Purchased via one-time Stripe checkout ($149)
-- Epic celebration modal with confetti animation
-- Managed via `founding_slots` table and `user_entitlements`
-- Admin can view/revoke in Settings (jonas@jonasinfocus.com only)
+### Ticket Statuses
+- `pending_review` - Awaiting admin review
+- `quote_sent` - Tier assigned, awaiting payment
+- `paid` - Payment received, ready for work
+- `in_progress` - Admin actively working
+- `completed` - Issue resolved
+- `cancelled` - Ticket cancelled
 
 ## Database Schema (Supabase)
 
 ### Tables
 
 ```sql
--- User subscription data
+-- User profiles
 user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users,
   stripe_customer_id TEXT UNIQUE,
-  subscription_status TEXT, -- 'free' | 'active' | 'canceled' | 'past_due' | 'diamond'
-  subscription_id TEXT,
-  price_id TEXT,
-  current_period_end TIMESTAMPTZ,
-  cancel_at_period_end BOOLEAN
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
 )
 
--- User habits
-habits (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES auth.users,
-  name TEXT,
-  color TEXT,
-  frequency TEXT, -- 'daily' | 'weekly' | 'custom'
-  custom_days JSONB -- {monday: true, tuesday: false, ...}
-)
-
--- Habit completions
-completions (
-  id UUID PRIMARY KEY,
-  user_id UUID,
-  habit_id UUID REFERENCES habits,
-  date TEXT -- YYYY-MM-DD format
-)
-
--- Founding member slots
-founding_slots (
-  id UUID PRIMARY KEY,
-  claimed_by_user_id UUID REFERENCES auth.users,
-  claimed_at TIMESTAMPTZ
-)
-
--- User feedback/bug reports
-user_feedback (
-  id UUID PRIMARY KEY,
-  user_id UUID,
-  user_email TEXT,
-  type TEXT, -- 'feedback' | 'bug' | 'feature'
-  priority TEXT, -- 'fyi' | 'minor' | 'important' | 'critical'
-  title TEXT,
-  message TEXT,
-  status TEXT, -- 'open' | 'in_progress' | 'resolved'
-  page TEXT,
-  platform TEXT,
-  app_version TEXT
-)
-
--- Streak history
-broken_streaks (
-  id UUID PRIMARY KEY,
-  user_id UUID,
-  habit_id UUID,
-  streak_length INT,
-  broken_date DATE
-)
-
--- User entitlements (current subscription system)
+-- User entitlements (subscriptions)
 user_entitlements (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id),
-  plan TEXT DEFAULT 'none',        -- 'none' | 'pro' | 'founding'
-  status TEXT DEFAULT 'none',      -- 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
+  plan TEXT DEFAULT 'none',        -- 'none' | 'peace_of_mind' | 'pro_partner'
+  status TEXT DEFAULT 'none',      -- 'none' | 'trialing' | 'active' | 'past_due' | 'canceled'
   stripe_subscription_id TEXT,
   current_period_ends_at TIMESTAMPTZ,
-  trial_ends_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+
+-- Support tickets
+tickets (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users,
+  user_email TEXT,
+  user_name TEXT,
+  title TEXT,
+  description TEXT,
+  status TEXT DEFAULT 'pending_review',
+  tier TEXT,                       -- 'quick' | 'standard' | 'complex'
+  price INTEGER,                   -- Price in cents
+  platform TEXT,
+  device_info TEXT,
+  admin_notes TEXT,
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 )
 ```
 
-### RPC Functions
+### RLS Policies
 
-```sql
--- Founding slots
-get_founding_slots_remaining() -> INTEGER
-get_founding_slots_total() -> INTEGER
-claim_founding_slot(user_id UUID) -> {success, error, message}
-get_founding_users_info() -> [{user_id, email, display_name, claimed_at}]
-revoke_founding_status(target_user_id UUID) -> {success, error, message}
-
--- User helpers
-is_subscribed(user_uuid UUID) -> BOOLEAN
-is_feedback_admin() -> BOOLEAN
-```
-
-### Storage Buckets
-
-- `avatars` - User profile images (2MB max, public)
+- Users can only view/create their own tickets
+- Admin (jonas@jonasinfocus.com) can view/update all tickets
+- `is_admin()` function checks if current user is admin
 
 ## Key Patterns
 
 ### State Management
 
-Five React Contexts with custom hooks:
-
 ```typescript
 const { user, signOut, updateDisplayName, uploadAvatar } = useAuth();
-const { habits, addHabit, toggleCompletion, isCompleted } = useHabits();
-const { isTrialing, trialState, openPortal } = useSubscription();  // Legacy, reads user_profiles
-const { hasAccess, isPro, isFounding, isTrialing } = useEntitlement();  // Current, reads user_entitlements
 const { theme, toggleTheme } = useTheme();
 ```
 
-### Subscription Checking
-
-**IMPORTANT**: Use `useEntitlement()` for feature gating, NOT `useSubscription()`.
+### Admin Check
 
 ```typescript
-// In components - CORRECT
-const { hasAccess, isFounding, isPro } = useEntitlement();
-
-// hasAccess = isPro || isFounding || isTrialing (use for feature gating)
-if (!hasAccess) {
-  setShowPaywall(true);
-}
-
-// AVOID using useSubscription() for access checks - it reads legacy table
+const ADMIN_EMAIL = 'jonas@jonasinfocus.com';
+const isAdmin = user?.email === ADMIN_EMAIL;
 ```
 
-### Habit Limit (Free Tier)
+### Ticket Submission
 
 ```typescript
-// Enforce the free-tier habit limit in UI components.
-// There is no `habitLimitReached` helper in `HabitsContext` currently.
-```
-
-### Optimistic Updates
-
-```typescript
-// Toggle completion updates UI immediately, syncs to server in background
-await toggleCompletion(habitId, date);
-// If server fails, UI reverts automatically
-```
-
-### Trial Checkout Flow
-
-```typescript
-// Note: Checkout is gated behind `VITE_BILLING_ENABLED=true`.
-// During beta (billing disabled), pro/founding plans are treated as beta to avoid Stripe flows.
-
-// When billing is enabled:
-sessionStorage.setItem('checkout_in_progress', 'true');  // Prevents TrialGuard redirect
-await createProTrialCheckout();  // Redirects to Stripe
-
-// User completes checkout → returns to /billing/return
-// BillingReturnPage clears flag and shows success
-sessionStorage.removeItem('checkout_in_progress');
-```
-
-### Founders Edition Purchase Flow
-
-```typescript
-// From pricing page or signup with ?plan=founding
-await createFoundingCheckout();  // Redirects to Stripe ($149 one-time)
-// On success, user_entitlements.plan = 'founding', status = 'active'
-// FoundingCelebration modal shows epic confetti
+await supabase.from('tickets').insert({
+  user_id: user.id,
+  user_email: user.email,
+  user_name: user.user_metadata?.display_name,
+  title,
+  description,
+  status: 'pending_review',
+  platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
+  device_info: navigator.userAgent,
+});
 ```
 
 ## Environment Variables
 
 ```bash
 # Supabase
-VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_URL=https://qhcuzqkiavbtirynvmyp.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 
-# Stripe
+# Future: Stripe
 VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
-VITE_STRIPE_MONTHLY_PRICE_ID=price_...
-VITE_STRIPE_ANNUAL_PRICE_ID=price_...
 VITE_BILLING_ENABLED=false
-
-# Edge Functions (in Supabase dashboard)
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 ## Admin Features
 
 Admin email: `jonas@jonasinfocus.com`
 
-- **Founding Slots Management**: View claimed slots, user info, revoke status
-- **User Feedback**: View/filter feedback, add internal notes, mark resolved
-- Located in Settings.tsx, gated by email check
-
-## Key Components
-
-### FoundingCelebration.tsx
-Epic celebration modal with:
-- 60 confetti particles with physics
-- Animated diamond icon with glow rings
-- Gradient text animation
-- Feature unlock display
-
-### FeedbackModal.tsx
-3-step wizard:
-1. Select type (Feedback/Bug)
-2. Select priority (FYI/Minor/Important/Critical)
-3. Enter title and description
-
-### PaywallModal.tsx
-Shows when free user hits limits:
-- Feature comparison table
-- Monthly/annual pricing toggle
-- In beta, CTAs are “Notify me / Coming soon” (no Stripe redirects)
-
-## Stripe Integration
-
-### Edge Functions
-
-```typescript
-// create-pro-trial-session - Creates Pro subscription checkout with 7-day trial
-// create-founding-session - Creates Founders Edition one-time payment checkout ($149)
-// create-portal-session - Opens billing portal for subscription management
-// stripe-webhook - Handles subscription events:
-//   - checkout.session.completed
-//   - customer.subscription.created/updated/deleted
-//   - invoice.payment_succeeded/failed
-```
-
-### Supabase Secrets (Edge Functions)
-
-```bash
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PRICE_ID_PRO_MONTHLY=price_...
-STRIPE_PRICE_ID_FOUNDING_ONE_TIME=price_...
-APP_URL=https://habit-psi.vercel.app
-```
-
-### Webhook Flow
-1. Stripe sends event to Edge Function
-2. Function updates `user_entitlements` table
-3. EntitlementContext receives realtime update
-4. UI updates automatically
+- **View all tickets**: See tickets from all users
+- **Assign tier**: Set Quick/Standard/Complex tier and price
+- **Update status**: Move tickets through workflow
+- **Add notes**: Customer-visible and resolution notes
+- **Real-time updates**: Supabase realtime subscription
 
 ---
 
@@ -368,7 +197,7 @@ APP_URL=https://habit-psi.vercel.app
 
 1. **Restraint over decoration** - No unnecessary visual elements
 2. **Typography-first hierarchy** - Size and weight create hierarchy
-3. **Minimal color palette** - Dark backgrounds with single accent
+3. **Minimal color palette** - Dark backgrounds with blue accent
 4. **Glass morphism** - Frosted surfaces create depth
 5. **Smooth, subtle motion** - 200-400ms transitions
 6. **High contrast** - Accessibility through clear contrast
@@ -381,41 +210,34 @@ APP_URL=https://habit-psi.vercel.app
 --bg-primary: #0B0B0B          /* Main background */
 --bg-secondary: #141414        /* Cards, containers */
 --bg-tertiary: #181818         /* Elevated surfaces */
---accent: #E85D4F              /* Primary action (coral) */
+--accent: #3b82f6              /* Primary action (blue) */
 --text-primary: #F5F5F5        /* Headlines */
 --text-secondary: #A0A0A0      /* Body text */
 --text-muted: #6F6F6F          /* Metadata */
 ```
 
-### Founding Member Accent
-
-```css
-/* Cyan gradient for Founders Edition elements */
-background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15));
-border: 1px solid rgba(6, 182, 212, 0.25);
-color: #22d3ee;
-```
-
-### Habit Color Palette
+### Status Colors
 
 ```typescript
-const HABIT_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4'
-];
+const STATUS_COLORS = {
+  pending_review: '#f59e0b',   // Amber
+  quote_sent: '#3b82f6',       // Blue
+  paid: '#22c55e',             // Green
+  in_progress: '#8b5cf6',      // Purple
+  completed: '#22c55e',        // Green
+  cancelled: '#6b7280',        // Gray
+};
 ```
 
-## Typography System
+### Tier Colors
 
-| Class | Size | Weight | Use For |
-|-------|------|--------|---------|
-| `.text-hero` | 34px | 600 | Landing headlines |
-| `.text-display` | 32px | 600 | Page titles |
-| `.text-section-header` | 22px | 500 | Section headers |
-| `.text-title` | 18px | 500 | Modal headers |
-| `.text-body-main` | 15px | 400 | Body text |
-| `.text-metadata` | 12px | 500 | Labels (uppercase) |
-| `.stat-number` | 64px | 500 | Large statistics |
+```typescript
+const TIER_COLORS = {
+  quick: '#22c55e',     // Green - $49
+  standard: '#3b82f6',  // Blue - $99
+  complex: '#ef4444',   // Red - $199
+};
+```
 
 ## Animation Patterns
 
@@ -436,23 +258,6 @@ whileTap={{ scale: 0.95 }}
 whileHover={{ scale: 1.02 }}
 ```
 
-## Modal Pattern
-
-```jsx
-<AnimatePresence>
-  {isOpen && (
-    <>
-      <motion.div className="liquid-glass-backdrop" onClick={onClose} />
-      <motion.div className="liquid-glass-modal">
-        {/* Header with close button */}
-        {/* Content */}
-        {/* Action buttons */}
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
-```
-
 ## Component Checklist
 
 When building new components:
@@ -464,18 +269,3 @@ When building new components:
 - [ ] Has proper loading/error states
 - [ ] Uses `AnimatePresence` for conditional content
 - [ ] Respects 4px spacing increments
-- [ ] Handles `hasAccess` from `useEntitlement()` for paywalled features
-
-## Quick Reference
-
-| Element | Class/Pattern |
-|---------|---------------|
-| Page title | `.text-display` |
-| Primary button | `.btn-pill-primary` |
-| Secondary button | `.btn-pill-secondary` |
-| Text input | `.liquid-glass-input` |
-| Modal wrapper | `.liquid-glass-modal` |
-| Accent color | `var(--accent)` / `#E85D4F` |
-| Founding accent | `#22d3ee` / `#06b6d4` |
-| Animation ease | `[0.32, 0.72, 0, 1]` |
-| Tap feedback | `whileTap={{ scale: 0.95 }}` |

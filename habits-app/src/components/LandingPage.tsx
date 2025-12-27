@@ -1,90 +1,103 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useDiamondSpots } from '../hooks/useDiamondSpots';
-import { TrialExpiredModal } from './TrialExpiredModal';
+import { Monitor, Printer, Smartphone, Laptop, HardDrive, Wifi, Shield, Clock, MessageCircle } from 'lucide-react';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { spotsRemaining } = useDiamondSpots();
-  const [showTrialExpired, setShowTrialExpired] = useState(false);
 
-  // Check for trial_expired, no_access, or canceled query params
-  useEffect(() => {
-    // Clear checkout flag if user canceled or was redirected back
-    if (searchParams.get('canceled') === 'true') {
-      sessionStorage.removeItem('checkout_in_progress');
-    }
-
-    if (searchParams.get('trial_expired') === 'true' || searchParams.get('no_access') === 'true') {
-      setShowTrialExpired(true);
-    }
-  }, [searchParams]);
-
-  const pricingPlans = [
+  const oneTimeServices = [
     {
-      name: 'Beta',
-      microtext: 'Limited Access',
-      price: '$0',
-      period: '/free',
-      description: 'Full access for friends & family.',
-      features: [
-        'Unlimited habits',
-        'Progress over time',
-        'Sync across devices',
-        'Private by default'
+      tier: 'quick',
+      name: 'Quick Fix',
+      price: '$49',
+      color: '#22c55e',
+      description: 'Single, clearly defined issue',
+      examples: [
+        'Account settings',
+        'App login issues',
+        'Simple configuration',
+        '"It worked yesterday"'
       ],
-      buttonText: 'Join Beta',
-      tier: 'beta' as const
+      promise: 'Fixed or refunded.'
     },
     {
-      name: 'Pro',
-      microtext: 'Most people start here',
-      price: '$9',
-      period: '/month',
-      description: 'For building habits that actually stick.',
-      trialCopy: '7-day free trial. Cancel anytime. No reminders needed. You won\'t be charged until the trial ends.',
-      features: [
-        'Unlimited habits',
-        'Progress over time',
-        'Sync across devices',
-        'Private by default'
+      tier: 'standard',
+      name: 'Standard Fix',
+      price: '$99',
+      color: '#3b82f6',
+      description: 'Software conflicts & sync problems',
+      examples: [
+        'iCloud / sync issues',
+        'Performance problems',
+        'Printer / network setup',
+        'Backup failures'
       ],
-      buttonText: 'Coming soon',
-      tier: 'pro' as const,
-      disabled: true
+      promise: 'Resolved, stabilized, or clearly explained.'
     },
     {
-      name: 'Founding',
-      microtext: 'Early supporter access',
-      price: '$0',
-      period: '/lifetime',
-      description: 'Help shape what comes next.',
-      features: [
-        'Everything in Pro',
-        'Lifetime access',
-        'Early access to new features',
-        'Direct line to the founder'
+      tier: 'complex',
+      name: 'Complex Fix',
+      price: '$199',
+      color: '#ef4444',
+      description: 'Multi-device & business-critical',
+      examples: [
+        'NAS / storage systems',
+        'Data migrations',
+        'Multi-device workflows',
+        'Long-term performance'
       ],
-      buttonText: spotsRemaining > 0 ? 'Become a founding member' : 'Founding access closed',
-      tier: 'diamond' as const,
-      disabled: true
+      promise: 'Root cause identified and fixed.'
     }
   ];
 
-  return (
-    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#E85D4F]/30 overflow-x-hidden">
-      <div className="flex justify-center pt-6">
-        <div className="px-3 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 backdrop-blur-sm">
-          <span className="text-[11px] font-medium tracking-widest uppercase text-[#A78BFA]">Private Beta v2.0</span>
-        </div>
-      </div>
+  const subscriptionPlans = [
+    {
+      name: 'Tech Peace of Mind',
+      price: '$199',
+      period: '/month',
+      description: 'For individuals who want reliable tech support on demand.',
+      features: [
+        'Unlimited support tickets',
+        'Async support (email/message)',
+        'Priority fix scheduling',
+        'All Apple devices covered'
+      ],
+      buttonText: 'Get Started',
+      tier: 'peace_of_mind'
+    },
+    {
+      name: 'Pro Tech Partner',
+      price: '$399',
+      period: '/month',
+      description: 'For power users and small businesses.',
+      features: [
+        'Everything in Peace of Mind',
+        'Faster response times',
+        '1 live call per month',
+        'Complex systems support',
+        'Scheduling (coming soon)'
+      ],
+      buttonText: 'Get Started',
+      tier: 'pro_partner',
+      featured: true
+    }
+  ];
 
+  const supportedDevices = [
+    { icon: Laptop, label: 'MacBooks' },
+    { icon: Monitor, label: 'iMacs' },
+    { icon: Smartphone, label: 'iPhones & iPads' },
+    { icon: Printer, label: 'Printers' },
+    { icon: HardDrive, label: 'Storage & NAS' },
+    { icon: Wifi, label: 'Networks' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5] selection:bg-[#3b82f6]/30 overflow-x-hidden">
       {/* Navigation */}
       <nav className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center">
         <div className="text-[18px] font-semibold tracking-[-0.01em]">
-          Habits
+          Sentra
         </div>
         <div className="flex items-center gap-4 sm:gap-8">
           <button
@@ -97,12 +110,12 @@ export const LandingPage = () => {
             onClick={() => navigate('/login?mode=signup')}
             className="btn-pill-primary !py-2 !px-4 sm:!px-6 !text-[13px] sm:!text-[14px]"
           >
-            Get started
+            Get Support
           </button>
         </div>
       </nav>
 
-      {/* Hero Section - Emotional Safety */}
+      {/* Hero Section */}
       <section className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-12 sm:pt-24 pb-12 sm:pb-20 text-center sm:text-left">
         <motion.p
           initial={{ opacity: 0 }}
@@ -110,25 +123,25 @@ export const LandingPage = () => {
           transition={{ duration: 0.6 }}
           className="text-metadata mb-6"
         >
-          Quiet Progress
+          Premium Tech Support
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="text-[28px] sm:text-[34px] font-semibold tracking-tight leading-[1.2] mb-6 sm:mb-8 max-w-[600px] mx-auto sm:mx-0"
+          className="text-[28px] sm:text-[40px] font-semibold tracking-tight leading-[1.2] mb-6 sm:mb-8 max-w-[700px] mx-auto sm:mx-0"
         >
-          Build habits gently. <br />
-          Stay consistent, without pressure.
+          Expert Apple support. <br />
+          Personal, premium, and precise.
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-[#A0A0A0] text-[15px] sm:text-[16px] max-w-[480px] mx-auto sm:mx-0 mb-8 sm:mb-12 leading-relaxed"
+          className="text-[#A0A0A0] text-[15px] sm:text-[17px] max-w-[520px] mx-auto sm:mx-0 mb-8 sm:mb-12 leading-relaxed"
         >
-          A calm interface for tracking what matters. <br />
-          No streaks to protect. No guilt. Just progress.
+          From quick fixes to complex migrations. <br />
+          I handle your tech so you can focus on what matters.
         </motion.p>
         <motion.div
           initial={{ opacity: 0 }}
@@ -137,44 +150,241 @@ export const LandingPage = () => {
           className="flex flex-col sm:flex-row items-center gap-6"
         >
           <button
-            onClick={() => navigate('/login?mode=signup&plan=beta')}
+            onClick={() => navigate('/login?mode=signup')}
             className="btn-pill-primary"
           >
-            Join beta
+            Submit a Request
           </button>
           <div className="flex items-center gap-4 text-[13px] text-[#6F6F6F]">
-            <span>Full access</span>
+            <div className="flex items-center gap-1.5">
+              <Clock size={14} />
+              <span>Fast response</span>
+            </div>
             <span className="opacity-30">|</span>
             <div className="flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <span>Private</span>
+              <Shield size={14} />
+              <span>Satisfaction guaranteed</span>
             </div>
           </div>
         </motion.div>
       </section>
 
-      {/* Philosophy Section */}
-      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-12 sm:py-20">
+      {/* Supported Devices */}
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="max-w-[520px] mx-auto sm:mx-0 text-center sm:text-left"
+          className="flex flex-wrap justify-center sm:justify-start gap-6 sm:gap-10"
         >
-          <p className="text-[15px] sm:text-[17px] text-[#A0A0A0] leading-[1.8]">
-            Most habit apps are designed to make you feel behind.
-            This one isn't. The interface is intentional and restrained —
-            helping you focus on what matters, without the noise.
-          </p>
+          {supportedDevices.map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-3 text-[#6F6F6F]">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                <Icon size={20} />
+              </div>
+              <span className="text-[14px]">{label}</span>
+            </div>
+          ))}
         </motion.div>
       </section>
 
-      {/* Privacy & Forgiveness Statement */}
-      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      {/* How It Works */}
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-[600px] mx-auto sm:mx-0"
+        >
+          <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#F5F5F5] mb-8">
+            How it works
+          </h2>
+          <div className="space-y-6">
+            {[
+              { step: '1', title: 'Submit your issue', desc: 'Describe what\'s happening. No tech jargon required.' },
+              { step: '2', title: 'Get a quote', desc: 'I\'ll review and assign the appropriate fix tier.' },
+              { step: '3', title: 'Approve & pay', desc: 'Once you approve, I\'ll get to work immediately.' },
+              { step: '4', title: 'Problem solved', desc: 'I\'ll fix it, explain what happened, and ensure it stays fixed.' },
+            ].map((item) => (
+              <div key={item.step} className="flex gap-4">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[14px] font-semibold" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                  {item.step}
+                </div>
+                <div>
+                  <p className="text-[15px] text-[#F5F5F5] font-medium mb-1">{item.title}</p>
+                  <p className="text-[14px] text-[#6F6F6F]">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* One-Time Services */}
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="mb-10 sm:mb-12 text-center sm:text-left">
+          <p className="text-metadata mb-3">One-Time Fixes</p>
+          <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#F5F5F5]">
+            Pay per fix. No commitment.
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {oneTimeServices.map((service, index) => (
+            <motion.div
+              key={service.tier}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              className="relative p-6 sm:p-8 rounded-[24px] h-full flex flex-col"
+              style={{
+                background: '#141414',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              {/* Tier indicator */}
+              <div
+                className="w-3 h-3 rounded-full mb-4"
+                style={{ background: service.color, boxShadow: `0 0 12px ${service.color}40` }}
+              />
+
+              <h3 className="text-[18px] font-semibold text-[#F5F5F5] mb-2">
+                {service.name}
+              </h3>
+
+              <div className="text-[32px] font-semibold text-[#F5F5F5] mb-4">
+                {service.price}
+              </div>
+
+              <p className="text-[14px] text-[#A0A0A0] mb-6">
+                {service.description}
+              </p>
+
+              <ul className="space-y-2 mb-6 flex-grow">
+                {service.examples.map(example => (
+                  <li key={example} className="flex items-center text-[13px] text-[#6F6F6F]">
+                    <div className="w-1 h-1 rounded-full bg-[#4F4F4F] mr-3" />
+                    {example}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="pt-4 border-t border-[#1F1F1F]">
+                <p className="text-[13px] text-[#A0A0A0] italic">
+                  {service.promise}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="text-center text-[13px] text-[#6F6F6F] mt-8"
+        >
+          We'll review your request and confirm the correct fix tier before starting.
+        </motion.p>
+      </section>
+
+      {/* Subscription Plans */}
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="mb-10 sm:mb-12 text-center sm:text-left">
+          <p className="text-metadata mb-3">Monthly Plans</p>
+          <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#F5F5F5]">
+            Ongoing support. Peace of mind.
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-[900px]">
+          {subscriptionPlans.map((plan, index) => (
+            <motion.div
+              key={plan.tier}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              className="relative"
+            >
+              {plan.featured && (
+                <motion.div
+                  className="absolute inset-0 rounded-[24px] pointer-events-none"
+                  animate={{
+                    boxShadow: [
+                      '0 0 20px rgba(59, 130, 246, 0.15), inset 0 0 20px rgba(59, 130, 246, 0.05)',
+                      '0 0 40px rgba(59, 130, 246, 0.25), inset 0 0 30px rgba(59, 130, 246, 0.1)',
+                      '0 0 20px rgba(59, 130, 246, 0.15), inset 0 0 20px rgba(59, 130, 246, 0.05)',
+                    ],
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+
+              <div
+                className="relative p-6 sm:p-8 rounded-[24px] h-full flex flex-col"
+                style={{
+                  background: '#141414',
+                  border: plan.featured
+                    ? '1px solid rgba(59, 130, 246, 0.3)'
+                    : '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                {plan.featured && (
+                  <div className="absolute top-4 right-4">
+                    <div className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                      <span className="text-[10px] font-medium tracking-widest text-[#3b82f6] uppercase">Recommended</span>
+                    </div>
+                  </div>
+                )}
+
+                <h3 className="text-[13px] font-medium tracking-[0.05em] uppercase text-[#A0A0A0] mb-2">
+                  {plan.name}
+                </h3>
+
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-[36px] font-semibold text-[#F5F5F5]">
+                    {plan.price}
+                  </span>
+                  <span className="text-[#6F6F6F] text-[14px]">{plan.period}</span>
+                </div>
+
+                <p className="text-[14px] text-[#A0A0A0] mb-6">
+                  {plan.description}
+                </p>
+
+                <ul className="space-y-3 mb-8 flex-grow">
+                  {plan.features.map(feature => (
+                    <li key={feature} className="flex items-center text-[14px] text-[#A0A0A0]">
+                      <div className="w-1 h-1 rounded-full bg-[#3b82f6] mr-3" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => navigate(`/login?mode=signup&plan=${plan.tier}`)}
+                  className="w-full py-3.5 px-6 rounded-full text-[14px] font-medium transition-all duration-200"
+                  style={{
+                    background: plan.featured ? '#F5F5F5' : 'rgba(255, 255, 255, 0.04)',
+                    color: plan.featured ? '#0B0B0B' : '#A0A0A0',
+                    border: plan.featured ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  {plan.buttonText}
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Trust Section */}
+      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -184,191 +394,30 @@ export const LandingPage = () => {
         >
           <div className="flex items-start gap-4">
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F6F6F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              <MessageCircle size={16} className="text-[#6F6F6F]" />
             </div>
             <div>
-              <p className="text-[14px] text-[#F5F5F5] mb-1 font-medium">Your data stays yours</p>
+              <p className="text-[14px] text-[#F5F5F5] mb-1 font-medium">Personal support</p>
               <p className="text-[13px] text-[#6F6F6F] leading-relaxed">
-                Row-level security. No tracking. No selling your habits.
+                You work directly with me. No call centers, no runaround.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-4">
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6F6F6F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
+              <Shield size={16} className="text-[#6F6F6F]" />
             </div>
             <div>
-              <p className="text-[14px] text-[#F5F5F5] mb-1 font-medium">Miss a day? That's okay.</p>
+              <p className="text-[14px] text-[#F5F5F5] mb-1 font-medium">Satisfaction guaranteed</p>
               <p className="text-[13px] text-[#6F6F6F] leading-relaxed">
-                No punishment. No broken streaks. Just pick up where you left off.
+                Fixed or refunded. I stand behind my work.
               </p>
             </div>
           </div>
         </motion.div>
       </section>
 
-      {/* Pricing Section - Hormozi Principles */}
-      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 py-16 sm:py-32">
-        <div className="mb-10 sm:mb-16 text-center sm:text-left">
-          <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-[#F5F5F5]">
-            Choose what feels right.
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-[1200px]">
-          {pricingPlans.map((plan, index) => {
-            const isFounding = plan.tier === 'diamond';
-            const isPro = plan.tier === 'pro';
-            const isBeta = plan.tier === 'beta';
-            const hasTrialCopy = 'trialCopy' in plan && plan.trialCopy;
-            const isDisabled = 'disabled' in plan && plan.disabled;
-
-            return (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="relative"
-              >
-                {/* Purple glow animation for Beta card */}
-                {isBeta && (
-                  <motion.div
-                    className="absolute inset-0 rounded-[24px] sm:rounded-[28px] pointer-events-none"
-                    animate={{
-                      boxShadow: [
-                        '0 0 20px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(139, 92, 246, 0.1)',
-                        '0 0 40px rgba(139, 92, 246, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.15)',
-                        '0 0 20px rgba(139, 92, 246, 0.2), inset 0 0 20px rgba(139, 92, 246, 0.1)',
-                      ],
-                    }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                )}
-
-                <div
-                  className={`relative p-6 sm:p-8 rounded-[24px] sm:rounded-[28px] h-full flex flex-col ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
-                  style={{
-                    background: '#141414',
-                    border: isPro || isBeta
-                      ? '1px solid rgba(255, 255, 255, 0.08)'
-                      : isFounding
-                        ? '1px solid rgba(255, 255, 255, 0.08)'  // Matched to Pro for minimal look
-                        : '1px solid rgba(255, 255, 255, 0.04)',
-                  }}
-                >
-                  {/* Coming Soon badge for founding */}
-                  {isFounding && (
-                    <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-                      <div className="px-2 py-0.5 border border-[#4F4F4F] rounded-full">
-                        <span className="text-[10px] font-medium tracking-widest text-[#A0A0A0] uppercase">Coming Soon</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Microtext + Plan Name */}
-                  <div className="mb-6">
-                    {'microtext' in plan && plan.microtext && (
-                      <p className="text-[11px] text-[#6F6F6F] mb-2">
-                        {plan.microtext}
-                      </p>
-                    )}
-                    <h3 className={`text-[13px] font-medium tracking-[0.05em] uppercase ${isFounding ? 'text-[#F5F5F5]' : 'text-[#F5F5F5]'}`}>
-                      {plan.name}
-                    </h3>
-                  </div>
-
-                  {/* Price / Title Area */}
-                  <div className="flex items-baseline gap-1 mb-4 h-[54px] sm:h-[60px] flex-col justify-center">
-                    {isFounding ? (
-                      <span className="text-[20px] sm:text-[22px] font-light tracking-[0.15em] text-[#E5E5E5] uppercase">
-                        Lifetime Access
-                      </span>
-                    ) : (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-[36px] font-semibold text-[#F5F5F5]">
-                          {plan.price}
-                        </span>
-                        {plan.period && (
-                          <span className="text-[#6F6F6F] text-[14px]">{plan.period}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Trial copy for Pro - risk reduction */}
-                  {hasTrialCopy && (
-                    <p className="text-[13px] text-[#6F6F6F] mb-6 leading-relaxed">
-                      {plan.trialCopy}
-                    </p>
-                  )}
-
-                  {/* Description */}
-                  <p className="text-[#A0A0A0] text-[15px] mb-6">
-                    {plan.description}
-                  </p>
-
-                  {/* Founding coming soon - hide slots display */}
-                  {isFounding && (
-                    <div className="mb-6">
-                      <p className="text-[13px] text-[#6F6F6F]">
-                        A permanent home for people who build daily.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Features */}
-                  <ul className="space-y-3 mb-8 flex-grow">
-                    {plan.features.map(feature => (
-                      <li key={feature} className="flex items-center text-[14px] text-[#A0A0A0]">
-                        <div className={`w-1 h-1 rounded-full mr-3 ${isFounding ? 'bg-[#F5F5F5]' : 'bg-[#6F6F6F]'}`} />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA Button */}
-                  <button
-                    onClick={() => {
-                      if (isDisabled) return;
-                      navigate(`/login?mode=signup&plan=${plan.tier}`);
-                    }}
-                    disabled={isDisabled}
-                    className={`w-full py-3.5 px-6 rounded-full text-[14px] font-medium transition-all duration-200 ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                    style={
-                      isBeta || isPro
-                        ? {
-                          background: '#F5F5F5',
-                          color: '#0B0B0B',
-                        }
-                        : isFounding
-                          ? {
-                            background: 'transparent',
-                            color: '#4F4F4F',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            cursor: 'not-allowed',
-                          }
-                          : {
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            color: '#4F4F4F',
-                          }
-                    }
-                  >
-                    {isFounding ? 'Coming Soon' : plan.buttonText}
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Final CTA - Hormozi Reassurance */}
+      {/* Final CTA */}
       <section className="max-w-[1200px] mx-auto px-6 py-24 text-center">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -377,17 +426,17 @@ export const LandingPage = () => {
           transition={{ duration: 0.8 }}
         >
           <h2 className="text-[22px] font-semibold text-[#F5F5F5] mb-4 tracking-tight">
-            Start where you are.
+            Ready to fix it?
           </h2>
           <p className="text-[15px] text-[#6F6F6F] mb-8 max-w-[380px] mx-auto leading-relaxed">
-            No pressure. No streaks to protect.<br />
-            You can always change later.
+            Submit your issue and I'll get back to you<br />
+            with a quote within 24 hours.
           </p>
           <button
-            onClick={() => navigate('/login?mode=signup&plan=beta')}
+            onClick={() => navigate('/login?mode=signup')}
             className="btn-pill-primary"
           >
-            Join beta
+            Submit a Request
           </button>
         </motion.div>
       </section>
@@ -395,25 +444,19 @@ export const LandingPage = () => {
       <footer className="max-w-[1200px] mx-auto px-6 py-24 border-t border-[#181818]">
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-[14px] text-[#6F6F6F]">
-            Quietly building since 2025.
+            Sentra — Premium Apple Tech Support
           </div>
           <div className="flex gap-12 text-[14px] text-[#6F6F6F]">
             <button onClick={() => navigate('/privacy')} className="hover:text-[#A0A0A0] transition-colors">Privacy</button>
             <button onClick={() => navigate('/terms')} className="hover:text-[#A0A0A0] transition-colors">Terms</button>
-            <button onClick={() => navigate('/changelog')} className="hover:text-[#A0A0A0] transition-colors">Changelog</button>
             <button onClick={() => navigate('/status')} className="hover:text-[#A0A0A0] transition-colors">Status</button>
           </div>
         </div>
         <div className="flex items-center justify-center gap-2 mt-8 pt-8 border-t border-[#181818]/50 text-[12px] text-[#4F4F4F]">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <span>Your data is isolated and protected</span>
+          <Shield size={12} />
+          <span>Your data is secure and private</span>
         </div>
       </footer>
-
-      {/* Trial Expired Modal */}
-      <TrialExpiredModal isOpen={showTrialExpired} onClose={() => setShowTrialExpired(false)} />
     </div>
   );
 };

@@ -1,17 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
-import { createProTrialCheckout, createFoundingCheckout } from '../utils/stripe';
 import { useAuth } from '../contexts/AuthContext';
-import { FoundingCelebration } from './FoundingCelebration';
-import { BetaLoadingScreen } from './BetaLoadingScreen';
-import { useDiamondSpots } from '../hooks/useDiamondSpots';
-import { HABIT_COLORS } from '../types';
-
-const PENDING_CHECKOUT_PLAN_KEY = 'pending_checkout_plan';
-type PendingCheckoutPlan = 'pro' | 'founding';
-const BILLING_ENABLED = import.meta.env.VITE_BILLING_ENABLED === 'true';
+import { Shield, Mail, CheckCircle } from 'lucide-react';
 
 export const AuthPage = () => {
   const [searchParams] = useSearchParams();
@@ -24,305 +16,79 @@ export const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [showFoundingCelebration, setShowFoundingCelebration] = useState(false);
-  const [pendingCheckoutPlan, setPendingCheckoutPlan] = useState<PendingCheckoutPlan | null>(null);
-  const [showBetaOnboarding, setShowBetaOnboarding] = useState(false);
-  const [betaOnboardingComplete, setBetaOnboardingComplete] = useState(false);
-  const [betaOnboardingUserId, setBetaOnboardingUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isMountedRef = useRef(true);
-  const postConfirmCheckoutStartedRef = useRef(false);
 
-  // Cleanup on unmount
+  // Redirect if already logged in
   useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Founding slots disabled - kept hook for future re-enablement
-  useDiamondSpots();
-
-  const getCheckoutPlanFromUrlOrStorage = (): PendingCheckoutPlan | null => {
-    if (!BILLING_ENABLED) return null;
-    const plan = searchParams.get('plan') || localStorage.getItem(PENDING_CHECKOUT_PLAN_KEY);
-    return plan === 'pro' || plan === 'founding' ? plan : null;
-  };
-
-  const isPostConfirmFlow = (): boolean => {
-    const postConfirmParam = searchParams.get('post_confirm');
-    return postConfirmParam === '1' || postConfirmParam === 'true';
-  };
-
-  const startCheckout = async (plan: PendingCheckoutPlan) => {
-    if (!BILLING_ENABLED) {
-      throw new Error('Billing is not enabled yet.');
+    if (user) {
+      navigate('/app');
     }
-    // Prevent TrialGuard redirect during checkout redirect
-    sessionStorage.setItem('checkout_in_progress', 'true');
-    try {
-      if (plan === 'pro') {
-        await createProTrialCheckout();
-      } else {
-        await createFoundingCheckout();
-      }
-    } catch (checkoutError) {
-      // Clear flag if checkout fails - otherwise user gets stuck
-      sessionStorage.removeItem('checkout_in_progress');
-      throw checkoutError;
-    }
-  };
-
-  // If user lands here from email confirmation with a pending checkout plan,
-  // automatically continue checkout once session is available.
-  useEffect(() => {
-    if (!user) return;
-    if (!isPostConfirmFlow()) return;
-
-    const plan = getCheckoutPlanFromUrlOrStorage();
-    if (!plan) return;
-    if (postConfirmCheckoutStartedRef.current) return;
-    if (sessionStorage.getItem('checkout_in_progress') === 'true') return;
-
-    postConfirmCheckoutStartedRef.current = true;
-    localStorage.removeItem(PENDING_CHECKOUT_PLAN_KEY);
-
-    // Show lightweight loading state while redirecting
-    setLoading(true);
-    setError(null);
-
-    startCheckout(plan).catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Checkout failed. Please try again.';
-      setLoading(false);
-      setError(message);
-      postConfirmCheckoutStartedRef.current = false;
-    });
-  }, [user, searchParams]);
+  }, [user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
-    if (isLogin) {
-      // Login flow - no terms needed
-      setLoading(true);
-      try {
+    try {
+      if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-
-        // If user is signing in to continue a post-confirm checkout, start checkout instead of going to /app.
-        const plan = getCheckoutPlanFromUrlOrStorage();
-        if (plan && (isPostConfirmFlow() || localStorage.getItem(PENDING_CHECKOUT_PLAN_KEY))) {
-          localStorage.removeItem(PENDING_CHECKOUT_PLAN_KEY);
-          await startCheckout(plan);
-          return;
-        }
-
         navigate('/app');
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'An error occurred';
-        if (message.includes('Invalid login credentials')) {
-          setError('Invalid email or password');
-        } else if (message.includes('Email not confirmed')) {
-          setError('Please verify your email before signing in');
-        } else {
-          setError('Something went wrong. Please try again.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Signup flow - check terms acceptance
-      if (!termsAccepted) {
-        setError('Please accept the Terms of Service to continue');
-        return;
-      }
-      await handleSignup();
-    }
-  };
-
-  const handleSignup = async () => {
-    // We'll show a dedicated beta onboarding screen for beta signups.
-    // For all other flows, keep the existing success/loading modal.
-    setLoadingProgress(0);
-    setError(null);
-    setPendingCheckoutPlan(null);
-    setBetaOnboardingComplete(false);
-    setBetaOnboardingUserId(null);
-
-    // Get and normalize the plan parameter from URL upfront.
-    // During beta (billing disabled), treat pro/founding as beta to avoid Stripe flows.
-    const rawPlanParam = searchParams.get('plan');
-    const planParam =
-      !BILLING_ENABLED && (rawPlanParam === 'pro' || rawPlanParam === 'founding')
-        ? 'beta'
-        : rawPlanParam;
-
-    const requiresCheckout = BILLING_ENABLED && (planParam === 'pro' || planParam === 'founding');
-    const isBeta = planParam === 'beta';
-
-    if (isBeta) {
-      // Prevent LoginRoute auto-redirecting into /app immediately once the session is created.
-      sessionStorage.setItem('beta_onboarding_in_progress', 'true');
-      // Show beta onboarding screen immediately after accepting terms.
-      setShowBetaOnboarding(true);
-    } else {
-      setShowSuccess(true);
-    }
-
-    // Animate the loading bar
-    const startTime = Date.now();
-    const duration = (requiresCheckout || isBeta) ? 800 : 1500; // legacy success modal duration
-
-    const animateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easedProgress = 1 - Math.pow(1 - progress, 3);
-      setLoadingProgress(easedProgress * 100);
-
-      if (progress < 1) {
-        requestAnimationFrame(animateProgress);
-      }
-    };
-    
-    requestAnimationFrame(animateProgress);
-
-    try {
-      // Step 1: Create the account
-      console.log('📝 Creating account...');
-      // Ensure the plan survives email confirmation redirect (and can resume checkout)
-      const emailRedirectUrl = new URL(`${window.location.origin}/login`);
-      emailRedirectUrl.searchParams.set('post_confirm', 'true');
-      if (planParam) emailRedirectUrl.searchParams.set('plan', planParam);
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: emailRedirectUrl.toString(),
-          data: {
-            full_name: name,
-            display_name: name,
-            beta_access: isBeta ? true : undefined,
-          },
-        },
-      });
-      if (signUpError) throw signUpError;
-
-      console.log('✅ Account created. planParam:', planParam);
-      if (isBeta && signUpData?.session?.user?.id) {
-        setBetaOnboardingUserId(signUpData.session.user.id);
-      }
-
-      // Founding slots disabled for now
-      const claimedFoundingSpot = false;
-
-      // Step 2: For checkout plans, either redirect immediately (if session exists),
-      // or show a clear "check your email to continue" message (if confirmations are enabled).
-      if (requiresCheckout && !claimedFoundingSpot) {
-        const checkoutPlan: PendingCheckoutPlan = planParam as PendingCheckoutPlan;
-
-        // Email confirmations enabled => signUp returns user but NO session until verified
-        if (!signUpData?.session) {
-          localStorage.setItem(PENDING_CHECKOUT_PLAN_KEY, checkoutPlan);
-          setPendingCheckoutPlan(checkoutPlan);
-          setShowCelebration(true); // Switch modal to email-confirm UX
-          setLoadingProgress(100);
-          return;
-        }
-
-        // Confirmations disabled (or auto-confirm) => session exists, we can redirect to checkout now.
-        await startCheckout(checkoutPlan);
-        return;
-      }
-
-      // Step 3: For non-checkout flows (founding member claim, beta signup, or free signup)
-      if (claimedFoundingSpot) {
-        // Wait for animation to finish before showing celebration
-        await new Promise(resolve => setTimeout(resolve, Math.max(0, duration - (Date.now() - startTime))));
-        if (isMountedRef.current) {
-          setShowSuccess(false);
-          setShowFoundingCelebration(true);
-        }
       } else {
-        // No plan specified or beta signup - show regular celebration (email verification)
-        // For beta signups with an immediate session, show beta onboarding for ~2.5s + success,
-        // then fade into the app. For beta signups without a session (email confirmation),
-        // fall back to the existing email verification celebration.
-        if (isBeta && signUpData?.session && isMountedRef.current) {
-          const minDuration = 2500;
-          await new Promise(resolve => setTimeout(resolve, Math.max(0, minDuration - (Date.now() - startTime))));
-          if (!isMountedRef.current) return;
-
-          // Mark onboarding complete; BetaLoadingScreen will play success and call onComplete.
-          setBetaOnboardingComplete(true);
+        if (!termsAccepted) {
+          setError('Please accept the Terms of Service to continue');
+          setLoading(false);
           return;
         }
 
-        await new Promise(resolve => setTimeout(resolve, Math.max(0, duration - (Date.now() - startTime))));
-        if (isMountedRef.current) setShowCelebration(true);
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login`,
+            data: {
+              full_name: name,
+              display_name: name,
+            },
+          },
+        });
+        if (signUpError) throw signUpError;
+
+        setShowSuccess(true);
       }
     } catch (err: unknown) {
-      console.error('❌ Signup/checkout error:', err);
       const message = err instanceof Error ? err.message : 'An error occurred';
-      console.log('📋 Error message:', message);
-
-      // Always close the loading modal on error
-      setShowSuccess(false);
-      setShowBetaOnboarding(false);
-      setBetaOnboardingComplete(false);
-      sessionStorage.removeItem('beta_onboarding_in_progress');
-
-      // Show appropriate error message
-      if (message.includes('already registered') || message.includes('already been registered')) {
+      if (message.includes('Invalid login credentials')) {
+        setError('Invalid email or password');
+      } else if (message.includes('Email not confirmed')) {
+        setError('Please verify your email before signing in');
+      } else if (message.includes('already registered') || message.includes('already been registered')) {
         setError('An account with this email already exists. Please sign in instead.');
-      } else if (message.includes('Email rate limit')) {
-        setError('Too many signup attempts. Please wait a moment and try again.');
       } else {
         setError('Something went wrong. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] flex flex-col selection:bg-[#E85D4F]/30">
-      {/* Beta onboarding overlay (blocks LoginRoute redirect + fades into app) */}
-      <BetaLoadingScreen
-        isOpen={showBetaOnboarding}
-        complete={betaOnboardingComplete}
-        onComplete={() => {
-          // Mark per-user "seen" so we don't show beta onboarding repeatedly in-app.
-          if (betaOnboardingUserId) {
-            localStorage.setItem(`beta_loading_seen:${betaOnboardingUserId}`, 'true');
-          }
-          // Clear flags and enter the app
-          sessionStorage.removeItem('beta_onboarding_in_progress');
-          sessionStorage.removeItem('beta_show_loading');
-          setShowBetaOnboarding(false);
-          setBetaOnboardingComplete(false);
-          navigate('/app');
-        }}
-      />
-
+    <div className="min-h-screen bg-[#0B0B0B] flex flex-col selection:bg-[#3b82f6]/30">
       {/* Header */}
       <nav className="max-w-[1200px] w-full mx-auto px-6 py-10 flex justify-between items-center">
         <button
           onClick={() => navigate('/')}
           className="text-[18px] font-semibold tracking-[-0.01em] text-[#F5F5F5] hover:opacity-80 transition-opacity"
         >
-          Habits
+          Sentra
         </button>
         <div className="flex items-center gap-2 text-[13px] text-[#6F6F6F]">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
+          <Shield size={14} />
           <span>Secure login</span>
         </div>
       </nav>
@@ -335,142 +101,145 @@ export const AuthPage = () => {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="w-full max-w-[400px]"
         >
-        <div className="text-center mb-12">
-          <h1 className="text-[24px] font-semibold text-[#F5F5F5] mb-3 tracking-tight">
-            {isLogin ? 'Sign In' : 'Create Account'}
-          </h1>
-          <p className="text-[14px] text-[#A0A0A0]">
-            {isLogin ? 'Enter your details to continue.' : 'Start tracking your habits today.'}
-          </p>
-        </div>
+          <div className="text-center mb-12">
+            <h1 className="text-[24px] font-semibold text-[#F5F5F5] mb-3 tracking-tight">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </h1>
+            <p className="text-[14px] text-[#A0A0A0]">
+              {isLogin ? 'Access your support dashboard.' : 'Get premium Apple tech support.'}
+            </p>
+          </div>
 
-        <form onSubmit={handleAuth} className="space-y-6">
-          {/* Name field - only show for signup */}
-          {!isLogin && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+          <form onSubmit={handleAuth} className="space-y-6">
+            {/* Name field - only show for signup */}
+            {!isLogin && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <label className="text-metadata block mb-2 opacity-60">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#3b82f6] transition-colors"
+                  placeholder="Your name"
+                  required={!isLogin}
+                />
+              </motion.div>
+            )}
+
+            <div>
               <label className="text-metadata block mb-2 opacity-60">
-                Name
+                Email
               </label>
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#E85D4F] transition-colors"
-                placeholder="Your name"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#3b82f6] transition-colors"
+                placeholder="name@example.com"
                 required
               />
-            </motion.div>
-          )}
+            </div>
 
-          <div>
-            <label className="text-metadata block mb-2 opacity-60">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#E85D4F] transition-colors"
-              placeholder="name@example.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-metadata block mb-2 opacity-60">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#E85D4F] transition-colors"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          {/* Terms checkbox - only show for signup */}
-          {!isLogin && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="pt-2"
-            >
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative mt-0.5 flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div
-                    className="w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
-                    style={{
-                      borderColor: termsAccepted ? '#E85D4F' : '#3A3A3A',
-                      backgroundColor: termsAccepted ? '#E85D4F' : 'transparent',
-                    }}
-                  >
-                    {termsAccepted && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                        <path d="M5 12L10 17L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                <span className="text-[13px] text-[#6F6F6F] group-hover:text-[#A0A0A0] transition-colors">
-                  I agree to the{' '}
-                  <a
-                    href="/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-[#E85D4F] hover:text-[#F5A89D] underline transition-colors"
-                  >
-                    Terms of Service
-                  </a>
-                </span>
+            <div>
+              <label className="text-metadata block mb-2 opacity-60">
+                Password
               </label>
-            </motion.div>
-          )}
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-0 py-3 bg-transparent border-b border-[#181818] text-[#F5F5F5] text-[15px] focus:outline-none focus:border-[#3b82f6] transition-colors"
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
-          {error && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-[13px] text-[#E85D4F] font-medium"
-            >
-              {error}
-            </motion.div>
-          )}
+            {/* Terms checkbox - only show for signup */}
+            {!isLogin && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="pt-2"
+              >
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative mt-0.5 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      className="w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                      style={{
+                        borderColor: termsAccepted ? '#3b82f6' : '#3A3A3A',
+                        backgroundColor: termsAccepted ? '#3b82f6' : 'transparent',
+                      }}
+                    >
+                      {termsAccepted && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                          <path d="M5 12L10 17L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[13px] text-[#6F6F6F] group-hover:text-[#A0A0A0] transition-colors">
+                    I agree to the{' '}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[#3b82f6] hover:text-[#60a5fa] underline transition-colors"
+                    >
+                      Terms of Service
+                    </a>
+                  </span>
+                </label>
+              </motion.div>
+            )}
 
-          <div className="pt-4">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-[13px] text-[#ef4444] font-medium"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-pill-primary w-full disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-10 text-center">
             <button
-              type="submit"
-              disabled={loading}
-              className="btn-pill-primary w-full disabled:opacity-50"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError(null);
+              }}
+              className="text-[13px] text-[#6F6F6F] hover:text-[#A0A0A0] transition-colors"
             >
-              {loading ? 'Processing' : (isLogin ? 'Continue' : 'Create Account')}
+              {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
             </button>
           </div>
-        </form>
-
-        <div className="mt-10 text-center">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-[13px] text-[#6F6F6F] hover:text-[#A0A0A0] transition-colors"
-          >
-            {isLogin ? "New here? Create an account" : "Already have an account? Sign in"}
-          </button>
-        </div>
         </motion.div>
       </div>
 
@@ -478,10 +247,8 @@ export const AuthPage = () => {
       <footer className="max-w-[1200px] w-full mx-auto px-6 py-8 border-t border-[#181818]">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2 text-[12px] text-[#4F4F4F]">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <span>Your data is isolated and protected</span>
+            <Shield size={12} />
+            <span>Your data is secure and private</span>
           </div>
           <div className="flex gap-8 text-[12px] text-[#4F4F4F]">
             <button onClick={() => navigate('/privacy')} className="hover:text-[#6F6F6F] transition-colors">Privacy</button>
@@ -490,23 +257,17 @@ export const AuthPage = () => {
         </div>
       </footer>
 
-      {/* Success Animation Modal */}
+      {/* Success Modal */}
       <AnimatePresence>
         {showSuccess && (
           <>
-            {/* Backdrop with animated gradient */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100]"
-              style={{
-                background: 'linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,20,20,0.98) 100%)',
-                backdropFilter: 'blur(20px)',
-              }}
+              className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl"
             />
 
-            {/* Success Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -514,252 +275,63 @@ export const AuthPage = () => {
               transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-[420px] p-8 rounded-3xl"
               style={{
-                background: 'rgba(20, 20, 20, 0.85)',
-                backdropFilter: 'blur(60px) saturate(150%)',
-                WebkitBackdropFilter: 'blur(60px) saturate(150%)',
+                background: 'rgba(20, 20, 20, 0.95)',
+                backdropFilter: 'blur(60px)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 24px 80px -12px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255,255,255,0.1) inset',
+                boxShadow: '0 24px 80px -12px rgba(0, 0, 0, 0.6)',
               }}
             >
-              {!showCelebration ? (
-                // Loading State
+              <div className="text-center">
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(34, 197, 94, 0.15)' }}
                 >
-                  <motion.div
-                    className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center"
-                    style={{
-                      background: `linear-gradient(135deg, ${HABIT_COLORS[0]}30, ${HABIT_COLORS[5]}30)`,
-                      boxShadow: `0 0 40px ${HABIT_COLORS[5]}20`,
-                    }}
-                    animate={{
-                      boxShadow: [
-                        `0 0 40px ${HABIT_COLORS[0]}20`,
-                        `0 0 60px ${HABIT_COLORS[5]}30`,
-                        `0 0 40px ${HABIT_COLORS[7]}20`,
-                      ],
-                    }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                  >
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={HABIT_COLORS[5]} strokeWidth="2" strokeLinecap="round">
-                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                      </svg>
-                    </motion.div>
-                  </motion.div>
-
-                  <h2 className="text-[20px] font-semibold text-[#F5F5F5] mb-3 tracking-tight">
-                    Creating your account...
-                  </h2>
-                  <p className="text-[14px] text-[#6F6F6F] mb-8">
-                    Setting everything up for you
-                  </p>
-
-                  {/* Progress Bar - Minimal blue */}
-                  <div
-                    className="h-1 rounded-full overflow-hidden mx-auto"
-                    style={{
-                      maxWidth: '200px',
-                      background: 'rgba(255, 255, 255, 0.04)',
-                    }}
-                  >
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${loadingProgress}%`,
-                        background: '#3b82f6',
-                      }}
-                    />
-                  </div>
+                  <CheckCircle size={32} className="text-[#22c55e]" />
                 </motion.div>
-              ) : (
-                // Celebration State
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-                  className="text-center relative"
+
+                <h2 className="text-[22px] font-semibold text-[#F5F5F5] mb-3 tracking-tight">
+                  Check Your Email
+                </h2>
+
+                <p className="text-[14px] text-[#A0A0A0] mb-6 leading-relaxed">
+                  We sent a verification link to<br />
+                  <span className="text-[#F5F5F5] font-medium">{email}</span>
+                </p>
+
+                <div
+                  className="flex items-center justify-center gap-3 p-4 rounded-xl mb-6"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
                 >
-                  {/* Floating color orbs */}
-                  {HABIT_COLORS.map((color, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-3 h-3 rounded-full"
-                      style={{
-                        background: color,
-                        boxShadow: `0 0 20px ${color}`,
-                        left: `${10 + (i * 9)}%`,
-                        top: '-20px',
-                      }}
-                      initial={{ y: 0, opacity: 0, scale: 0 }}
-                      animate={{
-                        y: [0, -40, 0],
-                        opacity: [0, 1, 0],
-                        scale: [0, 1.2, 0],
-                      }}
-                      transition={{
-                        duration: 2,
-                        delay: i * 0.1,
-                        repeat: Infinity,
-                        ease: 'easeOut',
-                      }}
-                    />
-                  ))}
+                  <Mail size={18} className="text-[#3b82f6]" />
+                  <span className="text-[13px] text-[#6F6F6F]">
+                    Click the link in your email to activate your account
+                  </span>
+                </div>
 
-                  {/* Success checkmark */}
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2, ease: [0.32, 0.72, 0, 1] }}
-                    className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center relative"
-                    style={{
-                      background: `linear-gradient(135deg, ${HABIT_COLORS[3]}40, ${HABIT_COLORS[4]}40)`,
-                      boxShadow: `0 0 60px ${HABIT_COLORS[3]}30, 0 0 100px ${HABIT_COLORS[4]}20`,
-                    }}
-                  >
-                    {/* Animated ring */}
-                    <motion.div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        border: `2px solid ${HABIT_COLORS[3]}`,
-                      }}
-                      initial={{ scale: 1, opacity: 1 }}
-                      animate={{ scale: 1.5, opacity: 0 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'easeOut' }}
-                    />
-                    <motion.svg
-                      width="36"
-                      height="36"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke={HABIT_COLORS[3]}
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.5, delay: 0.4 }}
-                    >
-                      <motion.path
-                        d="M20 6L9 17l-5-5"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                      />
-                    </motion.svg>
-                  </motion.div>
-
-                  {/* Title with gradient */}
-                  <motion.h2
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="text-[24px] font-semibold tracking-tight mb-3"
-                    style={{
-                      background: `linear-gradient(135deg, ${HABIT_COLORS[3]}, ${HABIT_COLORS[5]}, ${HABIT_COLORS[6]})`,
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    Account Created!
-                  </motion.h2>
-
-                  <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className="text-[15px] text-[#A0A0A0] mb-8 leading-relaxed"
-                  >
-                    {pendingCheckoutPlan
-                      ? (
-                        <>
-                          Please check your email and verify<br />
-                          your account to continue checkout.
-                        </>
-                      )
-                      : (
-                        <>
-                          Please check your email and verify<br />
-                          your account before signing in.
-                        </>
-                      )}
-                  </motion.p>
-
-                  {/* Email icon with pulse */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    className="flex items-center justify-center gap-3 p-4 rounded-xl mb-8"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                    }}
-                  >
-                    <motion.div
-                      animate={{
-                        scale: [1, 1.1, 1],
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={HABIT_COLORS[5]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="4" width="20" height="16" rx="2" />
-                        <path d="M22 7l-10 6L2 7" />
-                      </svg>
-                    </motion.div>
-                    <span className="text-[14px] text-[#A0A0A0]">{email}</span>
-                  </motion.div>
-
-                  {/* Action button */}
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                    onClick={() => {
-                      setShowSuccess(false);
-                      setShowCelebration(false);
-                      setIsLogin(true);
-                      setEmail('');
-                      setPassword('');
-                      setName('');
-                      setTermsAccepted(false);
-                    }}
-                    className="w-full py-4 rounded-xl text-[15px] font-medium transition-all"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      color: '#0B0B0B',
-                    }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {pendingCheckoutPlan ? 'Back to Sign In' : 'Go to Sign In'}
-                  </motion.button>
-                </motion.div>
-              )}
+                <button
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setIsLogin(true);
+                    setEmail('');
+                    setPassword('');
+                    setName('');
+                    setTermsAccepted(false);
+                  }}
+                  className="w-full py-4 rounded-xl text-[15px] font-medium transition-all bg-white text-black hover:bg-white/90"
+                >
+                  Back to Sign In
+                </button>
+              </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-
-      {/* Founding Member Epic Celebration */}
-      <FoundingCelebration
-        isOpen={showFoundingCelebration}
-        userName={name}
-        onContinue={() => {
-          setShowFoundingCelebration(false);
-          setIsLogin(true);
-          setEmail('');
-          setPassword('');
-          setName('');
-          setTermsAccepted(false);
-        }}
-      />
     </div>
   );
 };

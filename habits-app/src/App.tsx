@@ -1,66 +1,33 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { SubscriptionProvider } from './contexts/SubscriptionContext';
-import { EntitlementProvider } from './contexts/EntitlementContext';
-import { HabitsProvider } from './contexts/HabitsContext';
 import { useAuth } from './contexts/AuthContext';
-import { useEntitlement } from './contexts/EntitlementContext';
-import { Navigation } from './components/Navigation';
 import { Dashboard } from './components/Dashboard';
-import { Calendar } from './components/Calendar';
-import { Stats } from './components/Stats';
 import { Settings } from './components/Settings';
 import { LandingPage } from './components/LandingPage';
-import { InvitePage } from './components/InvitePage';
 import { AuthPage } from './components/AuthPage';
-import { BillingReturnPage } from './components/BillingReturnPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
-import { ReleaseNotesPage } from './components/ReleaseNotesPage';
-import { FeedbackModal } from './components/FeedbackModal';
-import { TrialGuard } from './components/TrialGuard';
-import { MaintenancePage } from './components/MaintenancePage';
 import { StatusPage } from './components/StatusPage';
-import { BetaLoadingScreen } from './components/BetaLoadingScreen';
-import { MessageCircle } from 'lucide-react';
-import type { ViewType } from './types';
+import { AdminTicketsView } from './components/AdminTicketsView';
+import { Home, Settings as SettingsIcon, Shield } from 'lucide-react';
 
-// Set to true to enable maintenance mode
-const MAINTENANCE_MODE = false;
-const PENDING_CHECKOUT_PLAN_KEY = 'pending_checkout_plan';
-
-const VIEW_LABELS: Record<ViewType, string> = {
-  home: 'Dashboard',
-  stats: 'Stats',
-  calendar: 'Calendar',
-  settings: 'Settings',
-};
+const ADMIN_EMAIL = 'jonas@jonasinfocus.com';
 
 const pageVariants = {
   initial: { opacity: 0 },
-  animate: {
-    opacity: 1,
-    transition: { duration: 0.2 }
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 0.15 }
-  },
+  animate: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.15 } },
 };
 
-import { HabitDetail } from './components/Analytics/HabitDetail';
+type ViewType = 'dashboard' | 'settings' | 'admin';
 
 const AppLayout = () => {
-  const [currentView, setCurrentView] = useState<ViewType>('home');
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [showBetaLoading, setShowBetaLoading] = useState(false);
-  const [betaLoadingComplete, setBetaLoadingComplete] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const { user, loading } = useAuth();
-  const { isBeta, loading: entitlementLoading } = useEntitlement();
   const navigate = useNavigate();
-  const reduceMotion = useReducedMotion();
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -68,74 +35,19 @@ const AppLayout = () => {
     }
   }, [user, loading, navigate]);
 
-  // Check if beta user needs to see loading screen
-  useEffect(() => {
-    if (loading || entitlementLoading || !user) return;
-
-    // Check for sessionStorage flag first (set after terms acceptance)
-    // This takes priority and works even if isBeta isn't ready yet
-    const shouldShowLoading = sessionStorage.getItem('beta_show_loading') === 'true';
-
-    if (shouldShowLoading) {
-      // Clear the flag immediately to prevent showing again
-      sessionStorage.removeItem('beta_show_loading');
-      setShowBetaLoading(true);
-      setBetaLoadingComplete(false);
-      return;
-    }
-
-    // Fallback: check if user is beta and hasn't seen loading screen (per-user)
-    if (isBeta) {
-      const hasSeenLoading =
-        localStorage.getItem(`beta_loading_seen:${user.id}`) === 'true' ||
-        localStorage.getItem('beta_loading_seen') === 'true'; // legacy key
-      if (!hasSeenLoading) {
-        setShowBetaLoading(true);
-        setBetaLoadingComplete(false);
-      }
-    }
-  }, [isBeta, loading, entitlementLoading, user]);
-
-  // Complete the beta loading after a delay
-  useEffect(() => {
-    if (!showBetaLoading) return;
-
-    const timer = setTimeout(() => {
-      setBetaLoadingComplete(true);
-      // Mark as seen so it doesn't show again
-      if (user) {
-        localStorage.setItem(`beta_loading_seen:${user.id}`, 'true');
-      }
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [showBetaLoading, user]);
-
-  const handleBetaLoadingComplete = () => {
-    setShowBetaLoading(false);
-    setBetaLoadingComplete(false);
-  };
-
-  if (loading || entitlementLoading) return null;
+  if (loading) return null;
   if (!user) return null;
-
-  // Show beta loading screen if needed
-  if (showBetaLoading) {
-    return <BetaLoadingScreen isOpen={showBetaLoading} complete={betaLoadingComplete} onComplete={handleBetaLoadingComplete} />;
-  }
 
   const renderView = () => {
     switch (currentView) {
-      case 'home':
-        return <Dashboard onNavigate={setCurrentView} />;
-      case 'calendar':
-        return <Calendar />;
-      case 'stats':
-        return <Stats />;
+      case 'dashboard':
+        return <Dashboard />;
       case 'settings':
         return <Settings />;
+      case 'admin':
+        return isAdmin ? <AdminTicketsView /> : <Dashboard />;
       default:
-        return <Dashboard onNavigate={setCurrentView} />;
+        return <Dashboard />;
     }
   };
 
@@ -143,73 +55,88 @@ const AppLayout = () => {
     <div className="app-layout">
       <main className="main-content">
         <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={
-              <motion.div
-                key={currentView}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-              >
-                {renderView()}
-              </motion.div>
-            } />
-            <Route path="habit/:id" element={<HabitDetail />} />
-          </Routes>
+          <motion.div
+            key={currentView}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {renderView()}
+          </motion.div>
         </AnimatePresence>
       </main>
 
-      {/* App version (subtle) */}
-      <div
-        className="fixed left-4 bottom-[88px] z-30 select-none pointer-events-none text-[10px] tracking-[0.16em] uppercase"
-        style={{ color: 'rgba(255, 255, 255, 0.22)' }}
+      {/* Bottom Navigation */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-2"
+        style={{
+          background: 'linear-gradient(to top, rgba(11, 11, 11, 0.98), rgba(11, 11, 11, 0.9), transparent)',
+        }}
       >
-        V{__APP_VERSION__}
-      </div>
-      
-      {/* Hide navigation when viewing habit details */}
-      <Routes>
-        <Route path="/" element={<Navigation currentView={currentView} onNavigate={setCurrentView} />} />
-      </Routes>
+        <div
+          className="max-w-[400px] mx-auto flex items-center justify-around rounded-2xl py-3 px-6"
+          style={{
+            background: 'rgba(28, 28, 30, 0.9)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          <NavButton
+            icon={<Home size={22} />}
+            label="Dashboard"
+            isActive={currentView === 'dashboard'}
+            onClick={() => setCurrentView('dashboard')}
+          />
 
-      {/* Floating Feedback Button */}
-      <motion.button
-        type="button"
-        onClick={() => setShowFeedback(true)}
-        className="feedback-fab fixed bottom-24 right-4 h-12 px-4 rounded-full flex items-center gap-2 z-40"
-        whileHover={reduceMotion ? undefined : { scale: 1.05 }}
-        whileTap={reduceMotion ? undefined : { scale: 0.95 }}
-        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
-        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        title="Send feedback"
-        aria-label="Send feedback"
-      >
-        <MessageCircle size={20} className="feedback-fab-icon" />
-        <span className="feedback-fab-label">Feedback</span>
-      </motion.button>
+          {isAdmin && (
+            <NavButton
+              icon={<Shield size={22} />}
+              label="Admin"
+              isActive={currentView === 'admin'}
+              onClick={() => setCurrentView('admin')}
+            />
+          )}
 
-      {/* Feedback Modal */}
-      <FeedbackModal
-        isOpen={showFeedback}
-        onClose={() => setShowFeedback(false)}
-        currentPage={VIEW_LABELS[currentView]}
-      />
+          <NavButton
+            icon={<SettingsIcon size={22} />}
+            label="Settings"
+            isActive={currentView === 'settings'}
+            onClick={() => setCurrentView('settings')}
+          />
+        </div>
+      </nav>
     </div>
   );
 };
 
-// Wrapper for landing page route to handle no_access param
+const NavButton = ({
+  icon,
+  label,
+  isActive,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center gap-1 px-4 py-1 transition-all"
+    style={{
+      color: isActive ? '#3b82f6' : '#6F6F6F',
+    }}
+  >
+    {icon}
+    <span className="text-[10px] font-medium">{label}</span>
+  </button>
+);
+
 function LandingPageRoute() {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  const hasNoAccessParam = searchParams.has('no_access');
 
-  // If user is authenticated but has no access, show landing page
-  // If user is authenticated and has access, redirect to app
-  // If user is not authenticated, show landing page
-  if (user && !hasNoAccessParam) {
+  if (user) {
     return <Navigate to="/app" replace />;
   }
 
@@ -218,20 +145,8 @@ function LandingPageRoute() {
 
 function LoginRoute() {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
 
-  const checkoutInProgress = sessionStorage.getItem('checkout_in_progress') === 'true';
-  const betaOnboardingInProgress =
-    sessionStorage.getItem('beta_onboarding_in_progress') === 'true' ||
-    sessionStorage.getItem('beta_show_loading') === 'true';
-  const postConfirm = searchParams.get('post_confirm') === '1' || searchParams.get('post_confirm') === 'true';
-  const planFromUrl = searchParams.get('plan');
-  const planFromStorage = localStorage.getItem(PENDING_CHECKOUT_PLAN_KEY);
-  const plan = planFromUrl || planFromStorage;
-  const hasPendingCheckout = postConfirm && (plan === 'pro' || plan === 'founding');
-
-  // If user is authenticated and no pending checkout flow, send them into the app.
-  if (user && !checkoutInProgress && !hasPendingCheckout && !betaOnboardingInProgress) {
+  if (user) {
     return <Navigate to="/app" replace />;
   }
 
@@ -239,50 +154,17 @@ function LoginRoute() {
 }
 
 function App() {
-  // Maintenance mode - show maintenance page for all routes except /status
-  if (MAINTENANCE_MODE) {
-    return (
-      <Routes>
-        <Route path="/status" element={<StatusPage />} />
-        <Route path="*" element={<MaintenancePage />} />
-      </Routes>
-    );
-  }
-
   return (
     <ThemeProvider>
-      <SubscriptionProvider>
-        <EntitlementProvider>
-          <HabitsProvider>
-            <Routes>
-              <Route
-                path="/"
-                element={<LandingPageRoute />}
-              />
-              <Route
-                path="/invite"
-                element={<InvitePage />}
-              />
-              <Route
-                path="/login"
-                element={<LoginRoute />}
-              />
-              <Route path="/billing/return" element={<BillingReturnPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/release-notes" element={<ReleaseNotesPage />} />
-              <Route path="/changelog" element={<Navigate to="/release-notes" replace />} />
-              <Route path="/status" element={<StatusPage />} />
-              <Route path="/app/*" element={
-                <TrialGuard>
-                  <AppLayout />
-                </TrialGuard>
-              } />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </HabitsProvider>
-        </EntitlementProvider>
-      </SubscriptionProvider>
+      <Routes>
+        <Route path="/" element={<LandingPageRoute />} />
+        <Route path="/login" element={<LoginRoute />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/status" element={<StatusPage />} />
+        <Route path="/app/*" element={<AppLayout />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </ThemeProvider>
   );
 }

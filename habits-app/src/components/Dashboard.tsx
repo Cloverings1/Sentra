@@ -1,423 +1,387 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useHabits } from '../contexts/HabitsContext';
-import { useEntitlement } from '../contexts/EntitlementContext';
 import { useAuth } from '../contexts/AuthContext';
-import { AddHabitModal } from './AddHabitModal';
-import { EditHabitModal } from './EditHabitModal';
-import { WeekView } from './WeekView';
-import { HabitCard } from './HabitCard';
-import { TrialBanner } from './TrialBanner';
-import { PaywallModal } from './PaywallModal';
-import { MicroConfetti } from './MicroConfetti';
-import { GlobalConsistency } from './Analytics/GlobalConsistency';
-import { formatDate } from '../utils/dateUtils';
-import type { Habit } from '../types';
+import { supabase } from '../utils/supabase';
+import { TicketModal } from './TicketModal';
+import { Plus, Clock, CheckCircle, AlertCircle, DollarSign, Wrench, X } from 'lucide-react';
 
-interface DashboardProps {
-  onNavigate?: (view: 'calendar') => void;
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  tier: string | null;
+  price: number | null;
+  created_at: string;
+  updated_at: string;
+  admin_notes: string | null;
+  resolution_notes: string | null;
 }
 
-export const Dashboard = ({ onNavigate }: DashboardProps) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
-  const { hasAccess, plan, isTrialing, trialState, isBeta } = useEntitlement();
-  useAuth();
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  pending_review: { label: 'Under Review', color: '#f59e0b', icon: Clock },
+  quote_sent: { label: 'Quote Sent', color: '#3b82f6', icon: DollarSign },
+  paid: { label: 'Paid', color: '#22c55e', icon: CheckCircle },
+  in_progress: { label: 'In Progress', color: '#8b5cf6', icon: Wrench },
+  completed: { label: 'Completed', color: '#22c55e', icon: CheckCircle },
+  cancelled: { label: 'Cancelled', color: '#6b7280', icon: AlertCircle },
+};
 
-  // Handler to trigger paywall when user without access tries to interact
-  const handlePaywallTrigger = () => {
-    setShowUpgradeModal(true);
+const TIER_CONFIG: Record<string, { label: string; price: string; color: string }> = {
+  quick: { label: 'Quick Fix', price: '$49', color: '#22c55e' },
+  standard: { label: 'Standard Fix', price: '$99', color: '#3b82f6' },
+  complex: { label: 'Complex Fix', price: '$199', color: '#ef4444' },
+};
+
+export const Dashboard = () => {
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchTickets();
+    }
+  }, [user]);
+
+  const fetchTickets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTickets(data || []);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Handler for add habit - check access first
-  const handleAddHabitClick = () => {
-    if (!hasAccess) {
-      setShowUpgradeModal(true);
-      return;
-    }
-    setIsModalOpen(true);
-  };
-
-  // Auto-redirect to calendar after 7 total completions (one-time)
-  useEffect(() => {
-    const hasSeenCalendar = localStorage.getItem('habits_seen_calendar');
-    if (!hasSeenCalendar && completedDays.length >= 7 && onNavigate) {
-      localStorage.setItem('habits_seen_calendar', 'true');
-      onNavigate('calendar');
-    }
-  }, [completedDays.length, onNavigate]);
-
-  // Calculate today's progress
-  const todayCompletions = getCompletionsForDate(selectedDate);
-  const completedToday = habits.filter(h =>
-    todayCompletions.some(c => c.habitId === h.id)
-  ).length;
-  const totalHabits = habits.length;
-  const isToday = formatDate(selectedDate) === formatDate(new Date());
-
-  // Perfect Day state - all habits completed
-  const isPerfectDay = totalHabits > 0 && completedToday === totalHabits && isToday;
-  const prevCompletedRef = useRef(completedToday);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [hasShownConfetti, setHasShownConfetti] = useState(false);
-  const [showPerfectDayPill, setShowPerfectDayPill] = useState(false);
-
-  // Trigger confetti when achieving Perfect Day
-  useEffect(() => {
-    // Only trigger when going from incomplete to complete
-    if (isPerfectDay && !hasShownConfetti && prevCompletedRef.current < totalHabits) {
-      setShowConfetti(true);
-      setShowPerfectDayPill(true);
-      setHasShownConfetti(true);
-
-      // Haptic feedback for Perfect Day
-      if (navigator.vibrate) {
-        navigator.vibrate([50, 50, 100]);
-      }
-
-      // Hide confetti after animation
-      setTimeout(() => {
-        setShowConfetti(false);
-      }, 2000);
-
-      // Hide Perfect Day pill after 3 seconds
-      setTimeout(() => {
-        setShowPerfectDayPill(false);
-      }, 3000);
-    }
-    prevCompletedRef.current = completedToday;
-  }, [completedToday, totalHabits, isPerfectDay, hasShownConfetti]);
-
-  // Reset hasShownConfetti when day changes or habits change
-  useEffect(() => {
-    setHasShownConfetti(false);
-    setShowPerfectDayPill(false);
-  }, [formatDate(selectedDate), habits.length]);
+  const activeTickets = tickets.filter(t => !['completed', 'cancelled'].includes(t.status));
+  const completedTickets = tickets.filter(t => ['completed', 'cancelled'].includes(t.status));
 
   return (
-    <div className="main-content">
-      {/* Header with greeting, progress, and streak */}
-      <header className="flex items-center gap-4 mb-6 h-12">
-        <div className="shrink-0">
-          <motion.div
-            className="flex items-center gap-3"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
+    <div className="min-h-screen bg-[#0B0B0B] text-[#F5F5F5]">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-[28px] font-semibold tracking-tight mb-2">
+          Support Dashboard
+        </h1>
+        <p className="text-[15px] text-[#6F6F6F]">
+          View your support requests and their status.
+        </p>
+      </div>
+
+      {/* New Request Button */}
+      <motion.button
+        onClick={() => setShowTicketModal(true)}
+        className="w-full p-6 rounded-2xl mb-8 flex items-center justify-center gap-3 transition-all"
+        style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+        }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: 'rgba(59, 130, 246, 0.15)' }}
+        >
+          <Plus size={20} className="text-[#3b82f6]" />
+        </div>
+        <span className="text-[16px] font-medium text-[#3b82f6]">
+          New Support Request
+        </span>
+      </motion.button>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : tickets.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-16"
+        >
+          <div
+            className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(255, 255, 255, 0.04)' }}
           >
-            <h1 className="text-display">
-              Hey <span className="font-bold">{userName}!</span>
-            </h1>
-            {/* Plan badge */}
-            <span
-              className="text-[10px] uppercase tracking-[0.08em] font-semibold px-2 py-1 rounded-full"
-              style={{
-                background: plan === 'founding'
-                  ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))'
-                  : isBeta
-                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15))'
-                    : plan === 'pro'
-                      ? 'rgba(255, 255, 255, 0.08)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                color: plan === 'founding'
-                  ? '#22d3ee'
-                  : isBeta
-                    ? '#22d3ee'
-                    : plan === 'pro'
-                      ? 'rgba(255, 255, 255, 0.7)'
-                      : 'rgba(255, 255, 255, 0.4)',
-                border: plan === 'founding'
-                  ? '1px solid rgba(6, 182, 212, 0.25)'
-                  : isBeta
-                    ? '1px solid rgba(6, 182, 212, 0.25)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-              }}
-            >
-              {plan === 'founding' ? 'Diamond' :
-               plan === 'pro' && isTrialing ? `Trial${trialState?.daysRemaining ? ` · ${trialState.daysRemaining}d` : ''}` :
-               plan === 'pro' ? 'Pro' :
-               isBeta ? 'Beta' :
-               'Free'}
-            </span>
-          </motion.div>
-
-          {/* Progress indicator */}
-          {totalHabits > 0 && (
-            <motion.div
-              className="flex items-center gap-3 mt-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
-            >
-              <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-                {isToday ? 'Today' : formatDate(selectedDate)}
-              </span>
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-1 rounded-full overflow-hidden"
-                  style={{
-                    width: 60,
-                    background: 'rgba(255, 255, 255, 0.1)',
-                  }}
-                >
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: 'var(--accent)' }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${totalHabits > 0 ? (completedToday / totalHabits) * 100 : 0}%` }}
-                    transition={{ duration: 0.4, ease: 'easeOut' }}
+            <CheckCircle size={28} className="text-[#6F6F6F]" />
+          </div>
+          <h3 className="text-[18px] font-medium mb-2">No support requests yet</h3>
+          <p className="text-[14px] text-[#6F6F6F] mb-6">
+            When you need help, submit a request and I'll get back to you.
+          </p>
+        </motion.div>
+      ) : (
+        <div className="space-y-8">
+          {/* Active Tickets */}
+          {activeTickets.length > 0 && (
+            <div>
+              <h2 className="text-[13px] font-medium tracking-[0.05em] uppercase text-[#6F6F6F] mb-4">
+                Active Requests ({activeTickets.length})
+              </h2>
+              <div className="space-y-3">
+                {activeTickets.map((ticket, index) => (
+                  <TicketCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    index={index}
+                    onClick={() => setSelectedTicket(ticket)}
                   />
-                </div>
-                <span
-                  className="text-[13px] font-medium tabular-nums"
-                  style={{ color: completedToday === totalHabits && totalHabits > 0 ? 'var(--accent)' : 'var(--text-secondary)' }}
-                >
-                  {completedToday}/{totalHabits}
-                </span>
+                ))}
               </div>
-            </motion.div>
+            </div>
+          )}
+
+          {/* Completed Tickets */}
+          {completedTickets.length > 0 && (
+            <div>
+              <h2 className="text-[13px] font-medium tracking-[0.05em] uppercase text-[#6F6F6F] mb-4">
+                Completed ({completedTickets.length})
+              </h2>
+              <div className="space-y-3">
+                {completedTickets.map((ticket, index) => (
+                  <TicketCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    index={index}
+                    onClick={() => setSelectedTicket(ticket)}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </div>
-
-        <div className="shrink-0 flex items-center gap-3 ml-auto">
-          {/* Calendar shortcut - 1 tap access */}
-          {completedDays.length > 0 && onNavigate && (
-            <motion.button
-              onClick={() => onNavigate('calendar')}
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ background: 'rgba(255, 255, 255, 0.1)' }}
-              title="View calendar"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </motion.button>
-          )}
-
-          {/* Add habit button - only show when user has habits (empty state has its own CTA) */}
-          {habits.length > 0 && (
-            <motion.button
-              onClick={handleAddHabitClick}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              style={{ background: 'rgba(255, 255, 255, 0.1)' }}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ background: 'rgba(255, 255, 255, 0.15)' }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 5V19M5 12H19" />
-              </svg>
-            </motion.button>
-          )}
-        </div>
-      </header>
-
-      {/* Trial Banner - shows during active trial */}
-      {isTrialing && !isBeta && (
-        <TrialBanner onUpgradeClick={() => setShowUpgradeModal(true)} />
       )}
 
-      {/* Date Strip */}
-      <WeekView selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-
-      {/* My Habits section */}
-      <section className="mt-4">
-        {habits.length === 0 ? (
-          <motion.div
-            className="flex flex-col items-center justify-center text-center"
-            style={{ minHeight: 'calc(100vh - 280px)' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
-          >
-            {/* Single clickable affordance - icon + label as one component */}
-            <motion.button
-              onClick={handleAddHabitClick}
-              className="flex flex-col items-center group"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ duration: 0.2 }}
-            >
-              <motion.div
-                className="w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-all duration-200"
-                style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-                whileHover={{ background: 'rgba(255, 255, 255, 0.1)' }}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
-                  <path d="M12 5V19M5 12H19" />
-                </svg>
-              </motion.div>
-              <span
-                className="text-[14px] font-medium transition-colors duration-200"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                Create habit
-              </span>
-            </motion.button>
-
-            {/* Supporting text - reduced contrast, calm language */}
-            <div className="mt-8 max-w-[240px]">
-              <h3
-                className="text-[15px] font-medium mb-2"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                Your first habit starts here
-              </h3>
-              <p
-                className="text-[13px] leading-relaxed"
-                style={{ color: 'var(--text-muted)', opacity: 0.8 }}
-              >
-                Keep it small. Consistency matters more than intensity.
-              </p>
-            </div>
-          </motion.div>
-        ) : (
-          <>
-            {/* Section header - left aligned */}
-            <motion.div
-              className="flex items-center justify-between mb-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-            >
-              <h2 className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                My Habits
-                <span className="ml-2 text-[12px] font-normal" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-                  {habits.length}
-                </span>
-              </h2>
-            </motion.div>
-
-            {/* Habits list - 2 column layout on desktop */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
-              <div className="flex flex-col">
-                <div className="w-full relative py-2">
-                  {habits.map((habit, index) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      index={index}
-                      selectedDate={selectedDate}
-                      onEdit={setEditingHabit}
-                      hasAccess={hasAccess}
-                      onPaywallTrigger={handlePaywallTrigger}
-                    />
-                  ))}
-                </div>
-
-                {/* Add another habit button - full width */}
-                <motion.button
-                  onClick={handleAddHabitClick}
-                  className="w-full mt-4 py-3 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    color: 'var(--text-muted)',
-                    border: '1px dashed rgba(255, 255, 255, 0.1)',
-                  }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  whileHover={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 5V19M5 12H19" />
-                  </svg>
-                  Add habit
-                </motion.button>
-              </div>
-
-              {/* Global Stats - Right column on desktop, stacked below on mobile */}
-              <div className="lg:sticky lg:top-8 mt-8 lg:mt-0">
-                <GlobalConsistency />
-              </div>
-            </div>
-
-          </>
-        )}
-      </section>
-
-      <AddHabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <EditHabitModal
-        isOpen={editingHabit !== null}
-        onClose={() => setEditingHabit(null)}
-        habit={editingHabit}
-      />
-      <PaywallModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        trigger="habit_limit"
+      {/* Ticket Modal */}
+      <TicketModal
+        isOpen={showTicketModal}
+        onClose={() => {
+          setShowTicketModal(false);
+          fetchTickets();
+        }}
       />
 
-      {/* Micro-confetti celebration for Perfect Day */}
-      <MicroConfetti isActive={showConfetti} />
-
-      {/* Perfect Day overlay message */}
+      {/* Ticket Detail Modal */}
       <AnimatePresence>
-        {showPerfectDayPill && (
-          <motion.div
-            className="fixed inset-x-0 bottom-24 flex justify-center pointer-events-none z-40"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
-          >
-            <motion.div
-              className="px-6 py-3 rounded-2xl flex items-center gap-3"
-              style={{
-                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              }}
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              transition={{
-                type: 'spring',
-                stiffness: 400,
-                damping: 25,
-                delay: 0.1,
-              }}
-            >
-              <motion.span
-                className="text-[20px]"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 10, -10, 0],
-                }}
-                transition={{
-                  duration: 0.6,
-                  repeat: Infinity,
-                  repeatDelay: 2,
-                }}
-              >
-                ✨
-              </motion.span>
-              <div>
-                <p className="text-[15px] font-semibold" style={{ color: '#22c55e' }}>
-                  Perfect Day!
-                </p>
-                <p className="text-[12px]" style={{ color: 'rgba(34, 197, 94, 0.8)' }}>
-                  All habits complete. You're amazing.
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
+        {selectedTicket && (
+          <TicketDetailModal
+            ticket={selectedTicket}
+            onClose={() => setSelectedTicket(null)}
+          />
         )}
       </AnimatePresence>
     </div>
+  );
+};
+
+const TicketCard = ({
+  ticket,
+  index,
+  onClick,
+}: {
+  ticket: Ticket;
+  index: number;
+  onClick: () => void;
+}) => {
+  const status = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.pending_review;
+  const tier = ticket.tier ? TIER_CONFIG[ticket.tier] : null;
+  const StatusIcon = status.icon;
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={onClick}
+      className="w-full p-5 rounded-2xl text-left transition-all hover:bg-white/[0.02]"
+      style={{
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[15px] font-medium text-[#F5F5F5] mb-1 truncate">
+            {ticket.title}
+          </h3>
+          <p className="text-[13px] text-[#6F6F6F] line-clamp-2">
+            {ticket.description}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
+            style={{
+              background: `${status.color}15`,
+              color: status.color,
+            }}
+          >
+            <StatusIcon size={12} />
+            {status.label}
+          </div>
+
+          {tier && (
+            <div
+              className="text-[11px] font-medium px-2 py-0.5 rounded"
+              style={{
+                background: `${tier.color}15`,
+                color: tier.color,
+              }}
+            >
+              {tier.label} • {tier.price}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 text-[11px] text-[#4F4F4F]">
+        Submitted {new Date(ticket.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })}
+      </div>
+    </motion.button>
+  );
+};
+
+const TicketDetailModal = ({
+  ticket,
+  onClose,
+}: {
+  ticket: Ticket;
+  onClose: () => void;
+}) => {
+  const status = STATUS_CONFIG[ticket.status] || STATUS_CONFIG.pending_review;
+  const tier = ticket.tier ? TIER_CONFIG[ticket.tier] : null;
+  const StatusIcon = status.icon;
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xl"
+        onClick={onClose}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.25 }}
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-[520px] max-h-[80vh] overflow-y-auto p-8 rounded-3xl"
+        style={{
+          background: 'rgba(20, 20, 20, 0.98)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 32px 100px -20px rgba(0, 0, 0, 0.7)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
+                style={{
+                  background: `${status.color}15`,
+                  color: status.color,
+                }}
+              >
+                <StatusIcon size={12} />
+                {status.label}
+              </div>
+              {tier && (
+                <div
+                  className="text-[11px] font-medium px-2 py-0.5 rounded"
+                  style={{
+                    background: `${tier.color}15`,
+                    color: tier.color,
+                  }}
+                >
+                  {tier.label}
+                </div>
+              )}
+            </div>
+            <h2 className="text-[20px] font-semibold text-[#F5F5F5]">
+              {ticket.title}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:bg-white/8 text-[#6F6F6F]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mb-6">
+          <h3 className="text-[12px] font-medium text-[#6F6F6F] uppercase tracking-wide mb-2">
+            Description
+          </h3>
+          <p className="text-[14px] text-[#A0A0A0] leading-relaxed whitespace-pre-wrap">
+            {ticket.description}
+          </p>
+        </div>
+
+        {tier && ticket.price && (
+          <div
+            className="p-4 rounded-xl mb-6"
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] text-[#A0A0A0]">{tier.label}</span>
+              <span className="text-[20px] font-semibold text-[#F5F5F5]">
+                ${(ticket.price / 100).toFixed(0)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {ticket.admin_notes && (
+          <div className="mb-6">
+            <h3 className="text-[12px] font-medium text-[#6F6F6F] uppercase tracking-wide mb-2">
+              Notes from Jonas
+            </h3>
+            <p className="text-[14px] text-[#A0A0A0] leading-relaxed whitespace-pre-wrap">
+              {ticket.admin_notes}
+            </p>
+          </div>
+        )}
+
+        {ticket.resolution_notes && (
+          <div className="mb-6">
+            <h3 className="text-[12px] font-medium text-[#22c55e] uppercase tracking-wide mb-2">
+              Resolution
+            </h3>
+            <p className="text-[14px] text-[#A0A0A0] leading-relaxed whitespace-pre-wrap">
+              {ticket.resolution_notes}
+            </p>
+          </div>
+        )}
+
+        <div className="pt-4 border-t border-[#1F1F1F] text-[12px] text-[#4F4F4F]">
+          <p>Submitted: {new Date(ticket.created_at).toLocaleString()}</p>
+          {ticket.updated_at !== ticket.created_at && (
+            <p>Last updated: {new Date(ticket.updated_at).toLocaleString()}</p>
+          )}
+        </div>
+      </motion.div>
+    </>
   );
 };
