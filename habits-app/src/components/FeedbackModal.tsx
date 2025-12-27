@@ -240,12 +240,12 @@ export const FeedbackModal = ({ isOpen, onClose, currentPage = 'unknown' }: Feed
                       exit={{ opacity: 0, y: -8 }}
                       className="space-y-3"
                     >
-                      <div className="flex gap-3 overflow-x-auto pb-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {PRIORITIES.map((p) => (
                           <button
                             key={p.value}
                             onClick={() => handlePrioritySelect(p.value)}
-                            className="p-5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02] flex-1 min-w-[180px]"
+                            className="p-5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02]"
                             style={{
                               background: `linear-gradient(135deg, ${p.color}10 0%, ${p.color}05 100%)`,
                               border: `1px solid ${p.color}25`,
