@@ -1096,11 +1096,11 @@ html.light .liquid-glass-modal {
 }
 
 .liquid-glass-modal--subtle {
-  background: rgba(28, 28, 30, 0.17); /* more transparent for Add Habit */
+  background: rgba(28, 28, 30, 0.88); /* solid background for Add Habit modal */
 }
 
 html.light .liquid-glass-modal--subtle {
-  background: rgba(255, 255, 255, 0.24); /* more transparent for Add Habit */
+  background: rgba(255, 255, 255, 0.92); /* solid background for Add Habit modal */
 }
 
 .liquid-glass-input {
