@@ -12,11 +12,9 @@ import { TrialBanner } from './TrialBanner';
 import { PaywallModal } from './PaywallModal';
 import { MicroConfetti } from './MicroConfetti';
 import { GlobalConsistency } from './Analytics/GlobalConsistency';
+import { DailyVerse } from './DailyVerse';
 import { formatDate } from '../utils/dateUtils';
-import { supabase } from '../utils/supabase';
 import type { Habit } from '../types';
-
-const ADMIN_EMAIL = 'jonas@jonasinfocus.com';
 
 interface DashboardProps {
   onNavigate?: (view: 'calendar') => void;
@@ -27,30 +25,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [criticalFeedbackCount, setCriticalFeedbackCount] = useState(0);
   const { habits, userName, getCompletionsForDate, completedDays } = useHabits();
   const { isTrialing } = useSubscription();
   const { hasAccess, plan, isTrialing: isTrialingEntitlement, trialState, isBeta } = useEntitlement();
   const { user } = useAuth();
-
-  const isAdmin = user?.email === ADMIN_EMAIL;
-
-  // Fetch critical feedback count for admin
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    const fetchCriticalFeedback = async () => {
-      const { count } = await supabase
-        .from('user_feedback')
-        .select('*', { count: 'exact', head: true })
-        .eq('priority', 'critical')
-        .neq('status', 'resolved');
-
-      setCriticalFeedbackCount(count || 0);
-    };
-
-    fetchCriticalFeedback();
-  }, [isAdmin]);
 
   // Handler to trigger paywall when user without access tries to interact
   const handlePaywallTrigger = () => {
@@ -247,27 +225,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         </div>
       </header>
 
+      {/* Daily Verse (rotates every day) */}
+      <DailyVerse userSeed={user?.id ?? user?.email ?? 'global'} />
+
       {/* Trial Banner - shows during active trial */}
       {isTrialing && (
         <TrialBanner onUpgradeClick={() => setShowUpgradeModal(true)} />
-      )}
-
-      {/* Admin: Critical Feedback Alert */}
-      {isAdmin && criticalFeedbackCount > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
-          style={{
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(185, 28, 28, 0.1) 100%)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-          }}
-        >
-          <span className="text-lg">🚨</span>
-          <p className="text-[14px] font-medium" style={{ color: '#ef4444' }}>
-            {criticalFeedbackCount} critical {criticalFeedbackCount === 1 ? 'issue needs' : 'issues need'} attention
-          </p>
-        </motion.div>
       )}
 
       {/* Date Strip */}
