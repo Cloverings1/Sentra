@@ -207,7 +207,6 @@ export const StatusPage = () => {
         isOpen={showFeedback}
         onClose={() => setShowFeedback(false)}
         currentPage="Status Page"
-        allowAnonymous={true}
       />
     </>
   );
